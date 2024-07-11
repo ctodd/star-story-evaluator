@@ -43,7 +43,7 @@ app.post('/generate', async (req, res) => {
             },
             body: JSON.stringify({
                 model: "claude-3-sonnet-20240229",
-                max_tokens: 1000,
+                max_tokens: 4096,
                 messages: [
                     { role: "user", content: fullPrompt }
                 ]
