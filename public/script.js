@@ -204,13 +204,16 @@ function createEvaluationHtml(response) {
     if (!parsedResponse) {
         return '<p>Error parsing the evaluation. Please try again.</p>';
     }
+    
+    // Always calculate the total score from categories instead of using the model's totalScore
+    const calculatedTotalScore = parsedResponse.categories.reduce((sum, category) => sum + category.score, 0);
 
     return `
     <div class="star-evaluation">
         <h2>STAR Response Evaluation</h2>
         
         <div class="score-summary">
-            <h3>Total Score: <span class="highlight">${parsedResponse.totalScore}/21</span> - ${parsedResponse.overallEvaluation}</h3>
+            <h3>Total Score: <span class="highlight">${calculatedTotalScore}/21</span> - ${parsedResponse.overallEvaluation}</h3>
         </div>
 
         <div class="evaluation-categories">
@@ -260,13 +263,23 @@ function parseClaudeResponse(response) {
         const jsonBlockMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
         if (jsonBlockMatch) {
             debug('Found JSON in code block');
-            return JSON.parse(jsonBlockMatch[1]);
+            const parsedData = JSON.parse(jsonBlockMatch[1]);
+            // Always recalculate the total score from categories
+            if (parsedData.categories && parsedData.categories.length > 0) {
+                parsedData.totalScore = parsedData.categories.reduce((sum, category) => sum + category.score, 0);
+            }
+            return parsedData;
         }
         
         // Next, try to parse the entire response as JSON
         try {
             debug('Attempting to parse entire response as JSON');
-            return JSON.parse(response);
+            const parsedData = JSON.parse(response);
+            // Always recalculate the total score from categories
+            if (parsedData.categories && parsedData.categories.length > 0) {
+                parsedData.totalScore = parsedData.categories.reduce((sum, category) => sum + category.score, 0);
+            }
+            return parsedData;
         } catch (jsonError) {
             debug('Not a direct JSON response, trying to extract JSON...');
         }
@@ -276,7 +289,12 @@ function parseClaudeResponse(response) {
         if (jsonMatch) {
             try {
                 debug('Found JSON-like structure, attempting to parse');
-                return JSON.parse(jsonMatch[1]);
+                const parsedData = JSON.parse(jsonMatch[1]);
+                // Always recalculate the total score from categories
+                if (parsedData.categories && parsedData.categories.length > 0) {
+                    parsedData.totalScore = parsedData.categories.reduce((sum, category) => sum + category.score, 0);
+                }
+                return parsedData;
             } catch (extractError) {
                 debug('Failed to extract JSON from response');
             }
@@ -319,7 +337,7 @@ function parseClaudeResponse(response) {
         }
         
         // Calculate total score from categories if not found directly
-        if (result.totalScore === 0 && result.categories.length > 0) {
+        if (result.categories.length > 0) {
             result.totalScore = result.categories.reduce((sum, category) => sum + category.score, 0);
             
             // Set overall evaluation based on total score
