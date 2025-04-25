@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { customPrompt } from './customPrompt.mjs';
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { BedrockRuntimeClient, InvokeModelCommand, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -46,6 +46,7 @@ const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || ANTHROPIC_DEFAULT_MODEL;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 const BEDROCK_DEFAULT_MODEL = 'anthropic.claude-3-sonnet-20240229-v1:0';
 const BEDROCK_MODEL = process.env.BEDROCK_MODEL || BEDROCK_DEFAULT_MODEL;
+const BEDROCK_INFERENCE_PROFILE = process.env.BEDROCK_INFERENCE_PROFILE || '';
 
 // Validate model selection
 const VALID_ANTHROPIC_MODELS = [
@@ -67,6 +68,20 @@ const VALID_BEDROCK_MODELS = [
     'anthropic.claude-3-5-haiku-20241022-v1:0',
     'anthropic.claude-3-7-sonnet-20250219-v1:0'
 ];
+
+// System-defined inference profiles for newer Claude models
+const INFERENCE_PROFILES = {
+    'anthropic.claude-3-haiku-20240307-v1:0': 'us.anthropic.claude-3-haiku-20240307-v1:0',
+    'anthropic.claude-3-opus-20240229-v1:0': 'us.anthropic.claude-3-opus-20240229-v1:0',
+    'anthropic.claude-3-sonnet-20240229-v1:0': 'us.anthropic.claude-3-sonnet-20240229-v1:0',
+    'anthropic.claude-3-5-haiku-20241022-v1:0': 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+    'anthropic.claude-3-5-sonnet-20240620-v1:0': 'us.anthropic.claude-3-5-sonnet-20240620-v1:0',
+    'anthropic.claude-3-5-sonnet-20241022-v2:0': 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+    'anthropic.claude-3-7-sonnet-20250219-v1:0': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
+};
+
+// Flag to determine if we should use InvokeModel or Converse API
+const USE_CONVERSE_API = process.env.USE_CONVERSE_API === 'true' || false;
 
 // Configure AWS SDK v3
 const bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
@@ -180,46 +195,114 @@ async function callBedrockAPI(prompt) {
         throw new Error(`Invalid Bedrock model: ${BEDROCK_MODEL}. Please use a Claude 3.x model.`);
     }
     
-    // Prepare the request payload based on the model
-    let payload = {
-        anthropic_version: 'bedrock-2023-05-31',
-        max_tokens: 4096,
-        messages: [
-            { role: "user", content: prompt }
-        ]
-    };
-    
-    const params = {
-        modelId: BEDROCK_MODEL,
-        contentType: 'application/json',
-        accept: 'application/json',
-        body: JSON.stringify(payload)
-    };
-    
     try {
-        const command = new InvokeModelCommand(params);
-        const response = await bedrockClient.send(command);
+        let response;
+        let responseText;
         
-        // Convert the response body from Uint8Array to string and parse as JSON
-        const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-        debug('Bedrock API response received');
+        // Determine if this model requires an inference profile
+        const isNewerClaudeModel = BEDROCK_MODEL.includes('claude-3-5') || BEDROCK_MODEL.includes('claude-3-7');
         
-        if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
-            const responseText = responseBody.content[0].text;
-            
-            // Print the model response to console only in debug mode
-            if (DEBUG) {
-                console.log('=== MODEL RESPONSE START ===');
-                console.log(responseText);
-                console.log('=== MODEL RESPONSE END ===');
-            }
-            
-            return responseText;
+        // For models that require inference profiles (like Claude 3.7), use the inference profile ID directly
+        let effectiveModelId = BEDROCK_MODEL;
+        if (isNewerClaudeModel && INFERENCE_PROFILES[BEDROCK_MODEL]) {
+            effectiveModelId = INFERENCE_PROFILES[BEDROCK_MODEL];
+            debug('Using inference profile ID as model ID:', effectiveModelId);
         }
         
-        throw new Error('Unexpected response structure from Bedrock API');
+        // Check if we should use the Converse API or fall back to InvokeModel
+        if (USE_CONVERSE_API) {
+            debug('Using Converse API');
+            
+            // Prepare the request payload for the Converse API
+            const converseParams = {
+                modelId: effectiveModelId,
+                messages: [
+                    { role: "user", content: [{ text: prompt }] }
+                ],
+                inferenceConfig: {
+                    maxTokens: 4096,
+                    temperature: 0,
+                    topP: 0.9
+                }
+            };
+            
+            // DEBUG: Log the exact request parameters
+            debug('DETAILED REQUEST PARAMS:', JSON.stringify(converseParams, null, 2));
+            
+            // Create and send the Converse command
+            const command = new ConverseCommand(converseParams);
+            response = await bedrockClient.send(command);
+            
+            debug('Bedrock Converse API response received');
+            
+            // Extract the response text from the message
+            if (response.output && 
+                response.output.message && 
+                response.output.message.content && 
+                response.output.message.content.length > 0 && 
+                response.output.message.content[0].text) {
+                
+                responseText = response.output.message.content[0].text;
+            } else {
+                throw new Error('Unexpected response structure from Bedrock Converse API');
+            }
+        } else {
+            debug('Using InvokeModel API');
+            
+            // Prepare the request payload for InvokeModel
+            let payload = {
+                anthropic_version: 'bedrock-2023-05-31',
+                max_tokens: 4096,
+                messages: [
+                    { role: "user", content: prompt }
+                ]
+            };
+            
+            const params = {
+                modelId: effectiveModelId,
+                contentType: 'application/json',
+                accept: 'application/json',
+                body: JSON.stringify(payload)
+            };
+            
+            // DEBUG: Log the exact request parameters
+            debug('DETAILED REQUEST PARAMS:', JSON.stringify(params, null, 2));
+            
+            // Create and send the InvokeModel command
+            const command = new InvokeModelCommand(params);
+            response = await bedrockClient.send(command);
+            
+            // Convert the response body from Uint8Array to string and parse as JSON
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            debug('Bedrock API response received');
+            
+            if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
+                responseText = responseBody.content[0].text;
+            } else {
+                throw new Error('Unexpected response structure from Bedrock API');
+            }
+        }
+        
+        // Print the model response to console only in debug mode
+        if (DEBUG) {
+            console.log('=== MODEL RESPONSE START ===');
+            console.log(responseText);
+            console.log('=== MODEL RESPONSE END ===');
+        }
+        
+        return responseText;
     } catch (error) {
         console.error('Bedrock API error:', error);
+        
+        // DEBUG: Add more detailed error information
+        if (error.name === 'ValidationException') {
+            debug('VALIDATION ERROR DETAILS:', error);
+            debug('ERROR MESSAGE:', error.message);
+            if (error.$metadata) {
+                debug('ERROR METADATA:', error.$metadata);
+            }
+        }
+        
         throw new Error(`AWS Bedrock error: ${error.message}`);
     }
 }
@@ -239,6 +322,14 @@ app.listen(port, () => {
         }
     } else {
         console.log(`AWS Bedrock model: ${BEDROCK_MODEL}`);
+        console.log(`Using ${USE_CONVERSE_API ? 'Converse' : 'InvokeModel'} API`);
+        
+        // Determine if this model requires an inference profile
+        const isNewerClaudeModel = BEDROCK_MODEL.includes('claude-3-5') || BEDROCK_MODEL.includes('claude-3-7');
+        if (isNewerClaudeModel && INFERENCE_PROFILES[BEDROCK_MODEL]) {
+            console.log(`Using inference profile ID as model ID: ${INFERENCE_PROFILES[BEDROCK_MODEL]}`);
+        }
+        
         if (!VALID_BEDROCK_MODELS.includes(BEDROCK_MODEL)) {
             console.warn(`Warning: Using unsupported model ${BEDROCK_MODEL}. Supported models are: ${VALID_BEDROCK_MODELS.join(', ')}`);
         }
