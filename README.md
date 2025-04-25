@@ -10,10 +10,12 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
 - Identification of demonstrated Amazon Leadership Principles
 - Specific improvement suggestions
 - Structured talking points for interview preparation
+- Implied behavioral question analysis
 
 ## Features
 
 - Web-based interface for submitting STAR stories
+- Optional behavioral question input
 - AI-powered evaluation using Claude AI models
 - Support for both AWS Bedrock and Anthropic direct API
 - Comprehensive scoring based on a 7-category rubric
@@ -31,7 +33,7 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
   - express
   - dotenv
   - node-fetch
-  - aws-sdk
+  - @aws-sdk/client-bedrock-runtime
 
 ## Installation
 
@@ -54,13 +56,19 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
    # AWS Bedrock Configuration
    AWS_REGION=us-east-1
    # Available Claude 3.x models on Bedrock:
+   # For Claude 3.0 models, use the model ID directly:
    # BEDROCK_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
    # BEDROCK_MODEL=anthropic.claude-3-haiku-20240307-v1:0
    # BEDROCK_MODEL=anthropic.claude-3-opus-20240229-v1:0
+   #
+   # For Claude 3.5/3.7 models, the system will automatically use the correct inference profile ID
    # BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20240620-v1:0
    # BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20241022-v2:0
    # BEDROCK_MODEL=anthropic.claude-3-5-haiku-20241022-v1:0
    # BEDROCK_MODEL=anthropic.claude-3-7-sonnet-20250219-v1:0
+   
+   # Debug mode (true/false)
+   DEBUG=false
    
    # Anthropic Direct API Configuration (only needed if API_PROVIDER=ANTHROPIC)
    # ANTHROPIC_API_KEY=your_api_key_here
@@ -94,13 +102,16 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
 ## Usage
 
 1. Enter your STAR story in the text area on the homepage
-2. Click "Submit" to send your story for evaluation
-3. Review the detailed feedback, including:
+   - Make sure to label each section with **Situation:**, **Task:**, **Action:**, and **Result:** for best results
+2. Optionally enter the behavioral question you're answering
+3. Click "Submit for Evaluation" to send your story for evaluation
+4. Review the detailed feedback, including:
    - Total score and overall evaluation
    - Scores for each evaluation category
    - Identified Amazon Leadership Principles
    - Improvement suggestions
    - Structured talking points
+   - Implied behavioral question (if no question was provided)
 
 ## Evaluation Criteria
 

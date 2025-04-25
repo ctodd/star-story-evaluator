@@ -89,14 +89,24 @@ const bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
 app.post('/generate', async (req, res) => {
     debug('Received request:', req.body);
     const userStory = req.body.story;
+    const userQuestion = req.body.question || '';
     debug('User story:', userStory);
+    debug('User question:', userQuestion);
     
     if (typeof customPrompt !== 'string') {
         console.error('Custom prompt is not a string:', customPrompt);
         return res.status(500).json({ error: 'Internal server error: Invalid custom prompt' });
     }
     
-    const fullPrompt = customPrompt.replace('[USER_STORY]', userStory);
+    let fullPrompt = customPrompt.replace('[USER_STORY]', userStory);
+    
+    // Add the question to the prompt if provided
+    if (userQuestion) {
+        fullPrompt = fullPrompt.replace('[USER_QUESTION]', userQuestion);
+    } else {
+        fullPrompt = fullPrompt.replace('[USER_QUESTION]', 'No specific question provided');
+    }
+    
     debug('Full prompt:', fullPrompt);
 
     try {

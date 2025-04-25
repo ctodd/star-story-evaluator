@@ -9,8 +9,19 @@
 <body>
     <div class="container">
         <h1>STAR Story Evaluator</h1>
-        <textarea id="storyInput" placeholder="Enter your STAR story here..."></textarea>
-        <button id="submitBtn">Submit</button>
+        <div class="input-section">
+            <h2>Enter your STAR story</h2>
+            <p class="instructions">Please label each section of your story with <strong>Situation:</strong>, <strong>Task:</strong>, <strong>Action:</strong>, and <strong>Result:</strong> to ensure accurate evaluation.</p>
+            <div class="question-input">
+                <label for="questionInput">Behavioral Question (optional):</label>
+                <input type="text" id="questionInput" placeholder="e.g., Tell me about a time when you had to meet a tight deadline...">
+            </div>
+            <textarea id="storyInput" placeholder="Situation: [Describe the situation]
+Task: [Describe the task or challenge]
+Action: [Describe the actions you took]
+Result: [Describe the outcome]"></textarea>
+            <button id="submitBtn">Submit for Evaluation</button>
+        </div>
         <div id="response"></div>
     </div>
     <script src="script.js"></script>

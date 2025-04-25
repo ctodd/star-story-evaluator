@@ -276,6 +276,10 @@ When evaluating responses:
 7. If requested, distill the response into concise talking points.
 </methodology>
 
+<behavioral_question>
+[USER_QUESTION]
+</behavioral_question>
+
 <star_response>
 [USER_STORY]
 </star_response>
@@ -288,6 +292,7 @@ Provide your evaluation in a structured JSON format as follows:
 {
   "totalScore": 0,
   "overallEvaluation": "",
+  "impliedQuestion": "",
   "categories": [
     {
       "name": "",
@@ -311,7 +316,7 @@ Provide your evaluation in a structured JSON format as follows:
   }
 }
 
-[USER_STORY]
+Based on the STAR response provided, determine what behavioral question it appears to be answering. If a specific question was provided, use that. Otherwise, infer the most likely behavioral question that this response would address. Include this as the "impliedQuestion" field in your JSON response.
 
 Provide your evaluation in the JSON format specified above.
 `;

@@ -23,7 +23,13 @@ fetch('/api/average-response-time')
 
 document.getElementById('submitBtn').addEventListener('click', async () => {
     const storyInput = document.getElementById('storyInput').value;
+    const questionInput = document.getElementById('questionInput').value;
     const responseDiv = document.getElementById('response');
+
+    if (!storyInput.trim()) {
+        alert('Please enter your STAR story before submitting.');
+        return;
+    }
 
     // Record the start time
     window.processingStartTime = Date.now();
@@ -70,7 +76,10 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ story: storyInput }),
+            body: JSON.stringify({ 
+                story: storyInput,
+                question: questionInput 
+            }),
         });
 
         if (!response.ok) {
@@ -211,6 +220,13 @@ function createEvaluationHtml(response) {
     return `
     <div class="star-evaluation">
         <h2>STAR Response Evaluation</h2>
+        
+        ${parsedResponse.impliedQuestion ? `
+        <div class="implied-question">
+            <h3>Implied Question</h3>
+            <p>${parsedResponse.impliedQuestion}</p>
+        </div>
+        ` : ''}
         
         <div class="score-summary">
             <h3>Total Score: <span class="highlight">${calculatedTotalScore}/21</span> - ${parsedResponse.overallEvaluation}</h3>
