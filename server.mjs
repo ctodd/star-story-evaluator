@@ -61,7 +61,7 @@ const ANTHROPIC_DEFAULT_MODEL = 'claude-3-7-sonnet-20250219';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || ANTHROPIC_DEFAULT_MODEL;
 
 // AWS Bedrock Configuration
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+const AWS_REGION = process.env.AWS_REGION || undefined; // Use undefined to let SDK use default credential chain
 const BEDROCK_DEFAULT_MODEL = 'us.anthropic.claude-3-7-sonnet-20250219-v1:0';
 const BEDROCK_MODEL = process.env.BEDROCK_MODEL || BEDROCK_DEFAULT_MODEL;
 
@@ -112,13 +112,31 @@ const USE_CONVERSE_API = process.env.USE_CONVERSE_API === 'true' || false;
 // Configure AWS SDK v3
 let bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
 
-// Function to refresh AWS credentials
-function refreshAwsCredentials() {
+// Get the actual region being used
+let actualAwsRegion = 'unknown';
+
+// Function to refresh AWS credentials and get the actual region
+async function refreshAwsCredentials() {
     debug('request', 'Refreshing AWS credentials');
     bedrockClient = new BedrockRuntimeClient({ 
         region: AWS_REGION,
         credentials: undefined // Force credential refresh
     });
+    
+    // Get the actual region from the client config
+    try {
+        // For SDK v3, we need to handle the case where region might be a function
+        if (typeof bedrockClient.config.region === 'function') {
+            actualAwsRegion = await bedrockClient.config.region();
+        } else {
+            actualAwsRegion = bedrockClient.config.region || 'unknown';
+        }
+        debug('request', `Using AWS region: ${actualAwsRegion}`);
+    } catch (error) {
+        console.error('Error getting region:', error);
+        actualAwsRegion = 'unknown';
+    }
+    
     return bedrockClient;
 }
 
@@ -211,7 +229,7 @@ app.post('/generate', async (req, res) => {
 app.get('/api/average-response-time', async (req, res) => {
     res.json({ 
         averageResponseTime: await getAverageResponseTime(),
-        region: AWS_REGION
+        region: actualAwsRegion
     });
 });
 
@@ -288,7 +306,7 @@ async function callBedrockAPI(prompt) {
     
     try {
         // Refresh AWS credentials before making the API call
-        refreshAwsCredentials();
+        await refreshAwsCredentials();
         
         let response;
         let responseText;
@@ -398,6 +416,9 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, async () => {
+    // Initialize the AWS client to get the actual region
+    await refreshAwsCredentials();
+    
     console.log(`Server is running on port ${port}`);
     console.log(`Using API provider: ${API_PROVIDER}`);
     
@@ -408,6 +429,7 @@ app.listen(port, async () => {
         }
     } else {
         console.log(`AWS Bedrock model: ${BEDROCK_MODEL}`);
+        console.log(`AWS region: ${actualAwsRegion} ${AWS_REGION ? '(from .env)' : '(from AWS config)'}`);
         console.log(`Using ${USE_CONVERSE_API ? 'Converse' : 'InvokeModel'} API`);
         
         // Determine if this model requires an inference profile
@@ -423,6 +445,9 @@ app.listen(port, async () => {
         if (!VALID_BEDROCK_MODELS.includes(BEDROCK_MODEL)) {
             console.warn(`Warning: Using unsupported model ${BEDROCK_MODEL}`);
         }
+        
+        // Check if the model is available in the current region
+        console.log(`Note: Make sure the model is enabled in the ${actualAwsRegion} region in your AWS Bedrock console`);
     }
     
     console.log(`Average response time: ${await getAverageResponseTime()}ms`);
@@ -486,4 +511,17 @@ async function getAverageResponseTime() {
     
     const sum = times.reduce((total, time) => total + time, 0);
     return Math.round(sum / times.length);
+}
+// Add a utility function to get the AWS region from the SDK
+async function getAwsRegion() {
+    try {
+        const client = new BedrockRuntimeClient({});
+        if (typeof client.config.region === 'function') {
+            return await client.config.region();
+        }
+        return client.config.region || 'unknown';
+    } catch (error) {
+        console.error('Error getting AWS region:', error);
+        return 'unknown';
+    }
 }
