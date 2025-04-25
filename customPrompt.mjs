@@ -5,7 +5,7 @@ Here's the rubric in structured XML:
 <rubric>
   <criteria>
     <criterion>
-      <name>Structure</name>
+      <n>Structure</n>
       <points>0-3</points>
       <levels>
         <level>
@@ -27,7 +27,7 @@ Here's the rubric in structured XML:
       </levels>
     </criterion>
     <criterion>
-      <name>Relevance to Question</name>
+      <n>Relevance to Question</n>
       <points>0-3</points>
       <levels>
         <level>
@@ -49,7 +49,7 @@ Here's the rubric in structured XML:
       </levels>
     </criterion>
     <criterion>
-      <name>Specificity</name>
+      <n>Specificity</n>
       <points>0-3</points>
       <levels>
         <level>
@@ -71,7 +71,7 @@ Here's the rubric in structured XML:
       </levels>
     </criterion>
     <criterion>
-      <name>Action Focus</name>
+      <n>Action Focus</n>
       <points>0-3</points>
       <levels>
         <level>
@@ -93,7 +93,7 @@ Here's the rubric in structured XML:
       </levels>
     </criterion>
     <criterion>
-      <name>Results/Impact</name>
+      <n>Results/Impact</n>
       <points>0-3</points>
       <levels>
         <level>
@@ -115,7 +115,7 @@ Here's the rubric in structured XML:
       </levels>
     </criterion>
     <criterion>
-      <name>Alignment with Amazon Leadership Principles</name>
+      <n>Alignment with Amazon Leadership Principles</n>
       <points>0-3</points>
       <levels>
         <level>
@@ -137,7 +137,7 @@ Here's the rubric in structured XML:
       </levels>
     </criterion>
     <criterion>
-      <name>Communication</name>
+      <n>Communication</n>
       <points>0-3</points>
       <levels>
         <level>
@@ -190,72 +190,72 @@ Here's the rubric in structured XML:
 </rubric>
 <amazon_leadership_principles>
   <principle>
-    <name>Customer Obsession</name>
+    <n>Customer Obsession</n>
     <description>Leaders start with the customer and work backwards. They work vigorously to earn and keep customer trust. Although leaders pay attention to competitors, they obsess over customers.</description>
   </principle>
   
   <principle>
-    <name>Ownership</name>
+    <n>Ownership</n>
     <description>Leaders are owners. They think long term and don't sacrifice long-term value for short-term results. They act on behalf of the entire company, beyond just their own team. They never say "that's not my job."</description>
   </principle>
   
   <principle>
-    <name>Invent and Simplify</name>
+    <n>Invent and Simplify</n>
     <description>Leaders expect and require innovation and invention from their teams and always find ways to simplify. They are externally aware, look for new ideas from everywhere, and are not limited by "not invented here." As we do new things, we accept that we may be misunderstood for long periods of time.</description>
   </principle>
   
   <principle>
-    <name>Are Right, A Lot</name>
+    <n>Are Right, A Lot</n>
     <description>Leaders are right a lot. They have strong judgment and good instincts. They seek diverse perspectives and work to disconfirm their beliefs.</description>
   </principle>
   
   <principle>
-    <name>Learn and Be Curious</name>
+    <n>Learn and Be Curious</n>
     <description>Leaders are never done learning and always seek to improve themselves. They are curious about new possibilities and act to explore them.</description>
   </principle>
   
   <principle>
-    <name>Hire and Develop the Best</name>
+    <n>Hire and Develop the Best</n>
     <description>Leaders raise the performance bar with every hire and promotion. They recognize exceptional talent, and willingly move them throughout the organization. Leaders develop leaders and take seriously their role in coaching others. We work on behalf of our people to invent mechanisms for development like Career Choice.</description>
   </principle>
   
   <principle>
-    <name>Insist on the Highest Standards</name>
+    <n>Insist on the Highest Standards</n>
     <description>Leaders have relentlessly high standards — many people may think these standards are unreasonably high. Leaders are continually raising the bar and drive their teams to deliver high quality products, services, and processes. Leaders ensure that defects do not get sent down the line and that problems are fixed so they stay fixed.</description>
   </principle>
   
   <principle>
-    <name>Think Big</name>
+    <n>Think Big</n>
     <description>Thinking small is a self-fulfilling prophecy. Leaders create and communicate a bold direction that inspires results. They think differently and look around corners for ways to serve customers.</description>
   </principle>
   
   <principle>
-    <name>Bias for Action</name>
+    <n>Bias for Action</n>
     <description>Speed matters in business. Many decisions and actions are reversible and do not need extensive study. We value calculated risk taking.</description>
   </principle>
   
   <principle>
-    <name>Frugality</name>
+    <n>Frugality</n>
     <description>Accomplish more with less. Constraints breed resourcefulness, self-sufficiency, and invention. There are no extra points for growing headcount, budget size, or fixed expense.</description>
   </principle>
   
   <principle>
-    <name>Earn Trust</name>
+    <n>Earn Trust</n>
     <description>Leaders listen attentively, speak candidly, and treat others respectfully. They are vocally self-critical, even when doing so is awkward or embarrassing. Leaders do not believe their or their team's body odor smells of perfume. They benchmark themselves and their teams against the best.</description>
   </principle>
   
   <principle>
-    <name>Dive Deep</name>
+    <n>Dive Deep</n>
     <description>Leaders operate at all levels, stay connected to the details, audit frequently, and are skeptical when metrics and anecdote differ. No task is beneath them.</description>
   </principle>
   
   <principle>
-    <name>Have Backbone; Disagree and Commit</name>
+    <n>Have Backbone; Disagree and Commit</n>
     <description>Leaders are obligated to respectfully challenge decisions when they disagree, even when doing so is uncomfortable or exhausting. Leaders have conviction and are tenacious. They do not compromise for the sake of social cohesion. Once a decision is determined, they commit wholly.</description>
   </principle>
   
   <principle>
-    <name>Deliver Results</name>
+    <n>Deliver Results</n>
     <description>Leaders focus on the key inputs for their business and deliver them with the right quality and in a timely fashion. Despite setbacks, they rise to the occasion and never settle.</description>
   </principle>
 </amazon_leadership_principles>
@@ -280,6 +280,9 @@ When evaluating responses:
 [USER_STORY]
 </star_response>
 Use this system to analyze STAR responses, provide scores, offer improvement suggestions, and create talking points when needed. The goal is to help individuals refine their STAR responses to effectively demonstrate their alignment with Amazon's Leadership Principles in behavioral interviews. Finally, provide a bullet list of talking points which follow the previous story timeline, separated by the STAR element. There should be enough bullet points to prevent missing an important story element, and each bullet point should be short to serve as a hint of each story element.
+
+IMPORTANT: Make sure to calculate the total score correctly by adding up all individual category scores. The maximum possible score is 21 (7 categories × 3 points each).
+
 Provide your evaluation in a structured JSON format as follows:
 
 {
