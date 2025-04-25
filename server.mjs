@@ -57,7 +57,7 @@ const API_PROVIDER = process.env.API_PROVIDER || 'BEDROCK'; // Default to AWS Be
 // Anthropic Claude Direct API Configuration
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_DEFAULT_MODEL = 'claude-3-sonnet-20240229';
+const ANTHROPIC_DEFAULT_MODEL = 'claude-3-7-sonnet-20250219';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || ANTHROPIC_DEFAULT_MODEL;
 
 // AWS Bedrock Configuration
@@ -97,9 +97,9 @@ const VALID_BEDROCK_MODELS = [
 
 // System-defined inference profiles for newer Claude models
 const INFERENCE_PROFILES = {
-    'anthropic.claude-3-haiku-20240307-v1:0': 'us.anthropic.claude-3-haiku-20240307-v1:0',
-    'anthropic.claude-3-opus-20240229-v1:0': 'us.anthropic.claude-3-opus-20240229-v1:0',
-    'anthropic.claude-3-sonnet-20240229-v1:0': 'us.anthropic.claude-3-sonnet-20240229-v1:0',
+    'anthropic.claude-3-haiku-20240307-v1:0': 'anthropic.claude-3-haiku-20240307-v1:0',
+    'anthropic.claude-3-opus-20240229-v1:0': 'anthropic.claude-3-opus-20240229-v1:0',
+    'anthropic.claude-3-sonnet-20240229-v1:0': 'anthropic.claude-3-sonnet-20240229-v1:0',
     'anthropic.claude-3-5-haiku-20241022-v1:0': 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
     'anthropic.claude-3-5-sonnet-20240620-v1:0': 'us.anthropic.claude-3-5-sonnet-20240620-v1:0',
     'anthropic.claude-3-5-sonnet-20241022-v2:0': 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
