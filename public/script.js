@@ -3,6 +3,9 @@ window.processingStartTime = 0;
 let averageResponseTime = 30000; // Default to 30 seconds
 const DEBUG = false; // Set to true to enable debug logging
 
+// Get AWS region from server config
+let AWS_REGION = 'us-east-1'; // Default region
+
 // Debug logger function
 function debug(...args) {
     if (DEBUG) {
@@ -15,7 +18,11 @@ fetch('/api/average-response-time')
     .then(response => response.json())
     .then(data => {
         averageResponseTime = data.averageResponseTime;
+        if (data.region) {
+            AWS_REGION = data.region;
+        }
         debug(`Using average response time: ${averageResponseTime}ms`);
+        debug(`AWS Region: ${AWS_REGION}`);
     })
     .catch(error => {
         console.error('Error fetching average response time:', error);
@@ -95,7 +102,13 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            if (response.status === 500) {
+                throw new Error('Server error. Please check that your AWS credentials or API keys are properly configured.');
+            } else if (response.status === 401 || response.status === 403) {
+                throw new Error('Authentication error. Please check your AWS credentials or API keys.');
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
         }
 
         const data = await response.json();
@@ -121,7 +134,38 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         console.error('Error:', error);
         // Ensure the animation stops
         clearTimeout(window.processingTimeout);
-        responseDiv.innerHTML = `An error occurred: ${error.message}. Please try again.`;
+        
+        // Create a more user-friendly error message
+        let errorMessage = error.message;
+        
+        // Add helpful hints for common errors
+        if (error.message.includes('credentials') || 
+            error.message.includes('authentication') || 
+            error.message.includes('API key')) {
+            errorMessage = `${error.message}<br><br>
+                <div class="error-hint">
+                    <strong>Hint:</strong> Make sure your AWS credentials or API keys are properly configured:
+                    <ul>
+                        <li>Check that your AWS credentials are set up in ~/.aws/credentials</li>
+                        <li>Verify that your IAM user has permission to access Bedrock</li>
+                        <li>If using Anthropic directly, check that your API key is correct in .env</li>
+                    </ul>
+                </div>`;
+        } else if (error.message.includes('Server error')) {
+            errorMessage = `${error.message}<br><br>
+                <div class="error-hint">
+                    <strong>Hint:</strong> This could be due to:
+                    <ul>
+                        <li>Missing or incorrect AWS credentials</li>
+                        <li>Insufficient permissions to access the selected model</li>
+                        <li>The selected model may not be enabled in your AWS account</li>
+                        <li>The model may not be available in the configured AWS region (${AWS_REGION})</li>
+                        <li>Ensure you've enabled the model in the AWS Bedrock console for your region</li>
+                    </ul>
+                </div>`;
+        }
+        
+        responseDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
     }
 });
 

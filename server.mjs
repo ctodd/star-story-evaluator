@@ -110,7 +110,17 @@ const INFERENCE_PROFILES = {
 const USE_CONVERSE_API = process.env.USE_CONVERSE_API === 'true' || false;
 
 // Configure AWS SDK v3
-const bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
+let bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
+
+// Function to refresh AWS credentials
+function refreshAwsCredentials() {
+    debug('request', 'Refreshing AWS credentials');
+    bedrockClient = new BedrockRuntimeClient({ 
+        region: AWS_REGION,
+        credentials: undefined // Force credential refresh
+    });
+    return bedrockClient;
+}
 
 app.post('/generate', async (req, res) => {
     debug('request', 'Received request body structure:', Object.keys(req.body));
@@ -130,6 +140,15 @@ app.post('/generate', async (req, res) => {
     
     debug('request', 'User story length:', userStory.length);
     debug('request', 'User question length:', userQuestion.length);
+    
+    // Reload environment variables to pick up any changes
+    dotenv.config();
+    
+    // Update API configuration from environment variables
+    const API_PROVIDER_UPDATED = process.env.API_PROVIDER || 'BEDROCK';
+    if (API_PROVIDER_UPDATED !== API_PROVIDER) {
+        console.log(`API provider changed from ${API_PROVIDER} to ${API_PROVIDER_UPDATED}`);
+    }
     
     if (typeof customPrompt !== 'string') {
         console.error('Custom prompt is not a string:', customPrompt);
@@ -172,14 +191,28 @@ app.post('/generate', async (req, res) => {
         });
     } catch (error) {
         console.error('Error details:', error);
+        
+        // Check for authentication errors
+        if (error.message.includes('authentication error') || 
+            error.message.includes('credentials')) {
+            return res.status(401).json({ 
+                error: error.message || 'Authentication error. Please check your API credentials.'
+            });
+        }
+        
         // Sanitize error message for client
-        res.status(500).json({ error: 'An error occurred while processing your request.' });
+        res.status(500).json({ 
+            error: 'An error occurred while processing your request.' 
+        });
     }
 });
 
 // Add endpoint to get average response time
 app.get('/api/average-response-time', async (req, res) => {
-    res.json({ averageResponseTime: await getAverageResponseTime() });
+    res.json({ 
+        averageResponseTime: await getAverageResponseTime(),
+        region: AWS_REGION
+    });
 });
 
 async function callAnthropicAPI(prompt) {
@@ -193,42 +226,55 @@ async function callAnthropicAPI(prompt) {
     }
     
     debug('request', 'Sending request to Anthropic API using model:', ANTHROPIC_MODEL);
-    const response = await fetch(ANTHROPIC_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-            model: ANTHROPIC_MODEL,
-            max_tokens: 4096,
-            messages: [
-                { role: "user", content: prompt }
-            ]
-        }),
-    });
+    try {
+        const response = await fetch(ANTHROPIC_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: ANTHROPIC_MODEL,
+                max_tokens: 4096,
+                messages: [
+                    { role: "user", content: prompt }
+                ]
+            }),
+        });
 
-    debug('response', 'Anthropic API response status:', response.status);
-    
-    if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('Anthropic API error response:', errorBody);
-        throw new Error(`API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    debug('response', 'Anthropic API response received');
-
-    if (data.content && data.content[0] && data.content[0].text) {
-        const responseText = data.content[0].text;
+        debug('response', 'Anthropic API response status:', response.status);
         
-        // Print the model response to console only in debug mode
-        debug('sensitive', responseText);
-        
-        return responseText;
-    } else {
-        throw new Error('Unexpected response structure');
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error('Anthropic API error response:', errorBody);
+            
+            if (response.status === 401 || response.status === 403) {
+                throw new Error('Anthropic authentication error - please check your API key');
+            }
+            
+            throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        debug('response', 'Anthropic API response received');
+
+        if (data.content && data.content[0] && data.content[0].text) {
+            const responseText = data.content[0].text;
+            
+            // Print the model response to console only in debug mode
+            debug('sensitive', responseText);
+            
+            return responseText;
+        } else {
+            throw new Error('Unexpected response structure');
+        }
+    } catch (error) {
+        if (error.message.includes('authentication error')) {
+            throw error; // Pass through authentication errors with clear message
+        }
+        console.error('Anthropic API error:', error);
+        throw new Error('Anthropic API error');
     }
 }
 
@@ -241,6 +287,9 @@ async function callBedrockAPI(prompt) {
     }
     
     try {
+        // Refresh AWS credentials before making the API call
+        refreshAwsCredentials();
+        
         let response;
         let responseText;
         
@@ -335,6 +384,9 @@ async function callBedrockAPI(prompt) {
             if (error.$metadata) {
                 debug('error', 'ERROR METADATA:', error.$metadata);
             }
+        } else if (error.name === 'AccessDeniedException' || error.name === 'UnrecognizedClientException') {
+            console.error('AWS credentials error:', error.name);
+            throw new Error('AWS authentication error - please check your credentials');
         }
         
         throw new Error(`AWS Bedrock error`);
