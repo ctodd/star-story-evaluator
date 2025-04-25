@@ -62,9 +62,8 @@ const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || ANTHROPIC_DEFAULT_MODEL;
 
 // AWS Bedrock Configuration
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
-const BEDROCK_DEFAULT_MODEL = 'anthropic.claude-3-sonnet-20240229-v1:0';
+const BEDROCK_DEFAULT_MODEL = 'us.anthropic.claude-3-7-sonnet-20250219-v1:0';
 const BEDROCK_MODEL = process.env.BEDROCK_MODEL || BEDROCK_DEFAULT_MODEL;
-const BEDROCK_INFERENCE_PROFILE = process.env.BEDROCK_INFERENCE_PROFILE || '';
 
 // Validate model selection
 const VALID_ANTHROPIC_MODELS = [
@@ -78,13 +77,22 @@ const VALID_ANTHROPIC_MODELS = [
 ];
 
 const VALID_BEDROCK_MODELS = [
+    // Claude 3.0 models (standard model IDs)
     'anthropic.claude-3-opus-20240229-v1:0',
     'anthropic.claude-3-sonnet-20240229-v1:0',
     'anthropic.claude-3-haiku-20240307-v1:0',
+    
+    // Claude 3.5/3.7 models (require inference profiles)
     'anthropic.claude-3-5-sonnet-20240620-v1:0',
     'anthropic.claude-3-5-sonnet-20241022-v2:0',
     'anthropic.claude-3-5-haiku-20241022-v1:0',
-    'anthropic.claude-3-7-sonnet-20250219-v1:0'
+    'anthropic.claude-3-7-sonnet-20250219-v1:0',
+    
+    // Inference profile IDs (for direct use with Claude 3.5/3.7)
+    'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+    'us.anthropic.claude-3-5-sonnet-20240620-v1:0',
+    'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+    'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
 ];
 
 // System-defined inference profiles for newer Claude models
@@ -237,11 +245,11 @@ async function callBedrockAPI(prompt) {
         let responseText;
         
         // Determine if this model requires an inference profile
-        const isNewerClaudeModel = BEDROCK_MODEL.includes('claude-3-5') || BEDROCK_MODEL.includes('claude-3-7');
+        const isNewerClaudeModel = BEDROCK_MODEL.includes('claude-3-5') || BEDROCK_MODEL.includes('claude-3-7') || BEDROCK_MODEL.startsWith('us.anthropic');
         
         // For models that require inference profiles (like Claude 3.7), use the inference profile ID directly
         let effectiveModelId = BEDROCK_MODEL;
-        if (isNewerClaudeModel && INFERENCE_PROFILES[BEDROCK_MODEL]) {
+        if (isNewerClaudeModel && !BEDROCK_MODEL.startsWith('us.anthropic') && INFERENCE_PROFILES[BEDROCK_MODEL]) {
             effectiveModelId = INFERENCE_PROFILES[BEDROCK_MODEL];
             debug('request', 'Using inference profile ID as model ID:', effectiveModelId);
         }
@@ -351,9 +359,13 @@ app.listen(port, async () => {
         console.log(`Using ${USE_CONVERSE_API ? 'Converse' : 'InvokeModel'} API`);
         
         // Determine if this model requires an inference profile
-        const isNewerClaudeModel = BEDROCK_MODEL.includes('claude-3-5') || BEDROCK_MODEL.includes('claude-3-7');
-        if (isNewerClaudeModel && INFERENCE_PROFILES[BEDROCK_MODEL]) {
-            console.log(`Using inference profile ID as model ID: ${INFERENCE_PROFILES[BEDROCK_MODEL]}`);
+        const isNewerClaudeModel = BEDROCK_MODEL.includes('claude-3-5') || BEDROCK_MODEL.includes('claude-3-7') || BEDROCK_MODEL.startsWith('us.anthropic');
+        if (isNewerClaudeModel) {
+            if (BEDROCK_MODEL.startsWith('us.anthropic')) {
+                console.log(`Using inference profile ID directly: ${BEDROCK_MODEL}`);
+            } else if (INFERENCE_PROFILES[BEDROCK_MODEL]) {
+                console.log(`Using inference profile ID as model ID: ${INFERENCE_PROFILES[BEDROCK_MODEL]}`);
+            }
         }
         
         if (!VALID_BEDROCK_MODELS.includes(BEDROCK_MODEL)) {
