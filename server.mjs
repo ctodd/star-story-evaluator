@@ -18,6 +18,8 @@ app.use(express.static('public'));
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const DEFAULT_MODEL = 'claude-3-sonnet-20240229';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
 
 app.post('/generate', async (req, res) => {
     console.log('Received request:', req.body);
@@ -33,7 +35,7 @@ app.post('/generate', async (req, res) => {
     console.log('Full prompt:', fullPrompt);
 
     try {
-        console.log('Sending request to Anthropic API...');
+        console.log('Sending request to Anthropic API using model:', ANTHROPIC_MODEL);
         const response = await fetch(ANTHROPIC_API_URL, {
             method: 'POST',
             headers: {
@@ -42,7 +44,7 @@ app.post('/generate', async (req, res) => {
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: "claude-3-sonnet-20240229",
+                model: ANTHROPIC_MODEL,
                 max_tokens: 4096,
                 messages: [
                     { role: "user", content: fullPrompt }
