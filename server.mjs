@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { customPrompt } from './customPrompt.mjs';
-import AWS from 'aws-sdk';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,9 +52,8 @@ const VALID_BEDROCK_MODELS = [
     'anthropic.claude-3-7-sonnet-20250219-v1:0'
 ];
 
-// Configure AWS SDK
-AWS.config.update({ region: AWS_REGION });
-const bedrockRuntime = new AWS.BedrockRuntime();
+// Configure AWS SDK v3
+const bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
 
 app.post('/generate', async (req, res) => {
     console.log('Received request:', req.body);
@@ -156,8 +155,11 @@ async function callBedrockAPI(prompt) {
     };
     
     try {
-        const response = await bedrockRuntime.invokeModel(params).promise();
-        const responseBody = JSON.parse(Buffer.from(response.body).toString());
+        const command = new InvokeModelCommand(params);
+        const response = await bedrockClient.send(command);
+        
+        // Convert the response body from Uint8Array to string and parse as JSON
+        const responseBody = JSON.parse(new TextDecoder().decode(response.body));
         console.log('Bedrock API response received');
         
         if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {

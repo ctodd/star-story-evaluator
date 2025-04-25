@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "main": "scripts.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.529.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "node-fetch": "^2.7.0"
