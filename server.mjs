@@ -124,7 +124,14 @@ async function callAnthropicAPI(prompt) {
     console.log('Anthropic API response received');
 
     if (data.content && data.content[0] && data.content[0].text) {
-        return data.content[0].text;
+        const responseText = data.content[0].text;
+        
+        // Print the model response to console
+        console.log('=== MODEL RESPONSE START ===');
+        console.log(responseText);
+        console.log('=== MODEL RESPONSE END ===');
+        
+        return responseText;
     } else {
         throw new Error('Unexpected response structure from Anthropic API');
     }
@@ -163,7 +170,14 @@ async function callBedrockAPI(prompt) {
         console.log('Bedrock API response received');
         
         if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
-            return responseBody.content[0].text;
+            const responseText = responseBody.content[0].text;
+            
+            // Print the model response to console
+            console.log('=== MODEL RESPONSE START ===');
+            console.log(responseText);
+            console.log('=== MODEL RESPONSE END ===');
+            
+            return responseText;
         }
         
         throw new Error('Unexpected response structure from Bedrock API');
