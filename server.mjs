@@ -15,6 +15,16 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Debug mode - set to true to enable detailed logging
+const DEBUG = process.env.DEBUG === 'true' || false;
+
+// Debug logger function
+function debug(...args) {
+    if (DEBUG) {
+        console.log('[DEBUG]', ...args);
+    }
+}
+
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -62,9 +72,9 @@ const VALID_BEDROCK_MODELS = [
 const bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
 
 app.post('/generate', async (req, res) => {
-    console.log('Received request:', req.body);
+    debug('Received request:', req.body);
     const userStory = req.body.story;
-    console.log('User story:', userStory);
+    debug('User story:', userStory);
     
     if (typeof customPrompt !== 'string') {
         console.error('Custom prompt is not a string:', customPrompt);
@@ -72,7 +82,7 @@ app.post('/generate', async (req, res) => {
     }
     
     const fullPrompt = customPrompt.replace('[USER_STORY]', userStory);
-    console.log('Full prompt:', fullPrompt);
+    debug('Full prompt:', fullPrompt);
 
     try {
         let responseText;
@@ -98,12 +108,14 @@ app.post('/generate', async (req, res) => {
             averageResponseTime: getAverageResponseTime()
         });
     } catch (error) {
+        console.error('Error details:', error);
+        res.status(500).json({ error: error.message || 'An error occurred while processing your request.' });
+    }
+});
+
 // Add endpoint to get average response time
 app.get('/api/average-response-time', (req, res) => {
     res.json({ averageResponseTime: getAverageResponseTime() });
-});        console.error('Error details:', error);
-        res.status(500).json({ error: error.message || 'An error occurred while processing your request.' });
-    }
 });
 
 async function callAnthropicAPI(prompt) {
@@ -116,7 +128,7 @@ async function callAnthropicAPI(prompt) {
         throw new Error(`Invalid Anthropic model: ${ANTHROPIC_MODEL}. Please use a Claude 3.x model.`);
     }
     
-    console.log('Sending request to Anthropic API using model:', ANTHROPIC_MODEL);
+    debug('Sending request to Anthropic API using model:', ANTHROPIC_MODEL);
     const response = await fetch(ANTHROPIC_API_URL, {
         method: 'POST',
         headers: {
@@ -133,7 +145,7 @@ async function callAnthropicAPI(prompt) {
         }),
     });
 
-    console.log('Anthropic API response status:', response.status);
+    debug('Anthropic API response status:', response.status);
     
     if (!response.ok) {
         const errorBody = await response.text();
@@ -142,15 +154,17 @@ async function callAnthropicAPI(prompt) {
     }
 
     const data = await response.json();
-    console.log('Anthropic API response received');
+    debug('Anthropic API response received');
 
     if (data.content && data.content[0] && data.content[0].text) {
         const responseText = data.content[0].text;
         
-        // Print the model response to console
-        console.log('=== MODEL RESPONSE START ===');
-        console.log(responseText);
-        console.log('=== MODEL RESPONSE END ===');
+        // Print the model response to console only in debug mode
+        if (DEBUG) {
+            console.log('=== MODEL RESPONSE START ===');
+            console.log(responseText);
+            console.log('=== MODEL RESPONSE END ===');
+        }
         
         return responseText;
     } else {
@@ -159,7 +173,7 @@ async function callAnthropicAPI(prompt) {
 }
 
 async function callBedrockAPI(prompt) {
-    console.log('Sending request to AWS Bedrock using model:', BEDROCK_MODEL);
+    debug('Sending request to AWS Bedrock using model:', BEDROCK_MODEL);
     
     // Validate model
     if (!VALID_BEDROCK_MODELS.includes(BEDROCK_MODEL)) {
@@ -188,15 +202,17 @@ async function callBedrockAPI(prompt) {
         
         // Convert the response body from Uint8Array to string and parse as JSON
         const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-        console.log('Bedrock API response received');
+        debug('Bedrock API response received');
         
         if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
             const responseText = responseBody.content[0].text;
             
-            // Print the model response to console
-            console.log('=== MODEL RESPONSE START ===');
-            console.log(responseText);
-            console.log('=== MODEL RESPONSE END ===');
+            // Print the model response to console only in debug mode
+            if (DEBUG) {
+                console.log('=== MODEL RESPONSE START ===');
+                console.log(responseText);
+                console.log('=== MODEL RESPONSE END ===');
+            }
             
             return responseText;
         }
@@ -229,6 +245,7 @@ app.listen(port, () => {
     }
     
     console.log(`Average response time: ${getAverageResponseTime()}ms`);
+    console.log(`Debug mode: ${DEBUG ? 'enabled' : 'disabled'}`);
 });
 
 // Response time tracking functions
@@ -271,7 +288,7 @@ function addResponseTime(responseTime) {
     // Save updated times
     saveResponseTimes(recentTimes);
     
-    console.log(`Added response time: ${responseTime}ms, Average: ${getAverageResponseTime()}ms`);
+    debug(`Added response time: ${responseTime}ms, Average: ${getAverageResponseTime()}ms`);
 }
 
 function getAverageResponseTime() {

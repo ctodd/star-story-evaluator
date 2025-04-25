@@ -1,13 +1,21 @@
 // Store the start time when processing begins
 window.processingStartTime = 0;
 let averageResponseTime = 30000; // Default to 30 seconds
+const DEBUG = false; // Set to true to enable debug logging
+
+// Debug logger function
+function debug(...args) {
+    if (DEBUG) {
+        console.log('[DEBUG]', ...args);
+    }
+}
 
 // Fetch the average response time when the page loads
 fetch('/api/average-response-time')
     .then(response => response.json())
     .then(data => {
         averageResponseTime = data.averageResponseTime;
-        console.log(`Using average response time: ${averageResponseTime}ms`);
+        debug(`Using average response time: ${averageResponseTime}ms`);
     })
     .catch(error => {
         console.error('Error fetching average response time:', error);
@@ -70,7 +78,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         }
 
         const data = await response.json();
-        console.log('Received data:', data);
+        debug('Received data:', data);
         
         if (data.error) {
             throw new Error(data.error);
@@ -79,7 +87,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         // Update the average response time if provided
         if (data.averageResponseTime) {
             averageResponseTime = data.averageResponseTime;
-            console.log(`Updated average response time: ${averageResponseTime}ms`);
+            debug(`Updated average response time: ${averageResponseTime}ms`);
         }
         
         // Ensure the animation completes before showing results
@@ -115,7 +123,7 @@ function simulateProcessing(steps, progressBar) {
     const totalDuration = averageResponseTime * 0.9; // Use 90% of average time to leave buffer
     const stepDuration = totalDuration / totalSteps;
     
-    console.log(`Simulating processing with ${totalSteps} steps over ${totalDuration}ms (${stepDuration}ms per step)`);
+    debug(`Simulating processing with ${totalSteps} steps over ${totalDuration}ms (${stepDuration}ms per step)`);
     
     // Start time to track overall progress
     const startTime = Date.now();
@@ -161,7 +169,7 @@ function ensureMinimumProcessingTime() {
         const remainingTime = minProcessingTime - elapsed;
         
         if (remainingTime > 0) {
-            console.log(`Waiting additional ${remainingTime}ms to complete animation`);
+            debug(`Waiting additional ${remainingTime}ms to complete animation`);
             setTimeout(() => {
                 // Complete the progress bar
                 const progressBar = document.querySelector('.status-progress-bar');
@@ -175,7 +183,7 @@ function ensureMinimumProcessingTime() {
                 setTimeout(resolve, 1000); // Longer delay to show completion
             }, remainingTime);
         } else {
-            console.log('Response received quickly, completing animation immediately');
+            debug('Response received quickly, completing animation immediately');
             // Complete the progress bar
             const progressBar = document.querySelector('.status-progress-bar');
             if (progressBar) progressBar.style.width = '100%';
@@ -251,28 +259,31 @@ function parseClaudeResponse(response) {
         // First, check if the response contains a JSON object within markdown code blocks
         const jsonBlockMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
         if (jsonBlockMatch) {
+            debug('Found JSON in code block');
             return JSON.parse(jsonBlockMatch[1]);
         }
         
         // Next, try to parse the entire response as JSON
         try {
+            debug('Attempting to parse entire response as JSON');
             return JSON.parse(response);
         } catch (jsonError) {
-            console.log('Not a direct JSON response, trying to extract JSON...');
+            debug('Not a direct JSON response, trying to extract JSON...');
         }
         
         // Look for JSON-like structure without code blocks
         const jsonMatch = response.match(/(\{[\s\S]*\})/);
         if (jsonMatch) {
             try {
+                debug('Found JSON-like structure, attempting to parse');
                 return JSON.parse(jsonMatch[1]);
             } catch (extractError) {
-                console.log('Failed to extract JSON from response');
+                debug('Failed to extract JSON from response');
             }
         }
         
         // If JSON parsing fails, try to extract scores from text format
-        console.log('Falling back to text parsing');
+        debug('Falling back to text parsing');
         
         // Create a structured object from the text response
         const result = {
@@ -354,7 +365,9 @@ function parseClaudeResponse(response) {
         return result;
     } catch (error) {
         console.error('Error parsing Claude response:', error);
-        console.log('Raw response:', response);
+        if (DEBUG) {
+            console.log('Raw response:', response);
+        }
         return null;
     }
 }
