@@ -43,7 +43,7 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
 
 1. Clone the repository:
    ```
-   git clone <repository-url>
+   git clone https://github.com/ctodd/star-story-evaluator
    cd STAR_Stories
    ```
 
@@ -52,7 +52,7 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
    npm install
    ```
 
-3. Create a `.env` file in the root directory:
+3. Create a `.env` file in the root directory (r copy from .env.example):
    ```
    # API Provider: BEDROCK or ANTHROPIC (defaults to BEDROCK)
    API_PROVIDER=BEDROCK
@@ -66,10 +66,10 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
    # BEDROCK_MODEL=anthropic.claude-3-opus-20240229-v1:0
    #
    # For Claude 3.5/3.7 models, the system will automatically use the correct inference profile ID
-   # BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20240620-v1:0
-   # BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20241022-v2:0
-   # BEDROCK_MODEL=anthropic.claude-3-5-haiku-20241022-v1:0
-   # BEDROCK_MODEL=anthropic.claude-3-7-sonnet-20250219-v1:0
+   # BEDROCK_MODEL=us.anthropic.claude-3-5-sonnet-20240620-v1:0
+   # BEDROCK_MODEL=us.anthropic.claude-3-5-sonnet-20241022-v2:0
+   # BEDROCK_MODEL=us.anthropic.claude-3-5-haiku-20241022-v1:0
+   # BEDROCK_MODEL=us.anthropic.claude-3-7-sonnet-20250219-v1:0
    
    # Debug mode (true/false)
    DEBUG=false
@@ -94,11 +94,6 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
 5. Start the server:
    ```
    npm start
-   ```
-   
-   Alternatively, use the provided script:
-   ```
-   ./run.sh
    ```
 
 6. Access the application at `http://localhost:3000`
