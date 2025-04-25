@@ -1,10 +1,50 @@
+// Store the start time when processing begins
+window.processingStartTime = 0;
+
 document.getElementById('submitBtn').addEventListener('click', async () => {
     const storyInput = document.getElementById('storyInput').value;
     const responseDiv = document.getElementById('response');
 
-    responseDiv.innerHTML = 'Processing...';
+    // Record the start time
+    window.processingStartTime = Date.now();
+
+    // Create and display the status indicator
+    const statusIndicator = createStatusIndicator();
+    responseDiv.innerHTML = '';
+    responseDiv.appendChild(statusIndicator);
+
+    // Define the steps the model will "take"
+    const steps = [
+        { id: 'parsing', text: 'Parsing STAR story structure...' },
+        { id: 'analyzing', text: 'Analyzing content against Amazon Leadership Principles...' },
+        { id: 'scoring', text: 'Calculating scores for each evaluation category...' },
+        { id: 'identifying', text: 'Identifying demonstrated leadership principles...' },
+        { id: 'suggestions', text: 'Generating improvement suggestions...' },
+        { id: 'talking-points', text: 'Creating structured talking points...' },
+        { id: 'reviewing', text: 'Reviewing evaluation for accuracy...' },
+        { id: 'finalizing', text: 'Finalizing evaluation report...' }
+    ];
+
+    // Add steps to the status indicator
+    const stepsContainer = statusIndicator.querySelector('.status-steps');
+    const progressBar = statusIndicator.querySelector('.status-progress-bar');
+    
+    steps.forEach((step, index) => {
+        const stepElement = document.createElement('div');
+        stepElement.className = 'status-step';
+        stepElement.id = `step-${step.id}`;
+        stepElement.innerHTML = `
+            <div class="status-icon">${index + 1}</div>
+            <div class="status-text">${step.text}</div>
+        `;
+        stepsContainer.appendChild(stepElement);
+    });
 
     try {
+        // Start the "fake" processing animation
+        simulateProcessing(steps, progressBar);
+        
+        // Make the actual API request
         const response = await fetch('/generate', {
             method: 'POST',
             headers: {
@@ -24,13 +64,103 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
             throw new Error(data.error);
         }
         
+        // Ensure the animation completes before showing results
+        await ensureMinimumProcessingTime();
+        
+        // Replace the status indicator with the evaluation results
         const evaluationHtml = createEvaluationHtml(data.response);
         responseDiv.innerHTML = evaluationHtml;
     } catch (error) {
         console.error('Error:', error);
+        // Ensure the animation stops
+        clearTimeout(window.processingTimeout);
         responseDiv.innerHTML = `An error occurred: ${error.message}. Please try again.`;
     }
 });
+
+function createStatusIndicator() {
+    const statusIndicator = document.createElement('div');
+    statusIndicator.className = 'status-indicator';
+    statusIndicator.innerHTML = `
+        <h3>Evaluating Your STAR Story</h3>
+        <div class="status-steps"></div>
+        <div class="status-progress">
+            <div class="status-progress-bar"></div>
+        </div>
+    `;
+    return statusIndicator;
+}
+
+function simulateProcessing(steps, progressBar) {
+    const totalSteps = steps.length;
+    const stepDuration = 4500; // increased to ~4.5 seconds per step (31.5 seconds total for 7 steps)
+    const totalDuration = stepDuration * totalSteps;
+    
+    // Start time to track overall progress
+    const startTime = Date.now();
+    
+    // Function to update progress
+    function updateProgress() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / totalDuration * 100, 99); // Cap at 99% until complete
+        progressBar.style.width = `${progress}%`;
+        
+        // Calculate which step should be active
+        const currentStepIndex = Math.min(Math.floor(elapsed / stepDuration), totalSteps - 1);
+        
+        // Update step states
+        steps.forEach((step, index) => {
+            const stepElement = document.getElementById(`step-${step.id}`);
+            if (index < currentStepIndex) {
+                stepElement.className = 'status-step completed';
+            } else if (index === currentStepIndex) {
+                stepElement.className = 'status-step active';
+            } else {
+                stepElement.className = 'status-step';
+            }
+        });
+        
+        // Continue updating if not complete
+        if (elapsed < totalDuration) {
+            window.processingTimeout = setTimeout(updateProgress, 50);
+        }
+    }
+    
+    // Start the progress updates
+    updateProgress();
+}
+
+function ensureMinimumProcessingTime() {
+    const minProcessingTime = 35000; // 35 seconds minimum processing time
+    return new Promise(resolve => {
+        const remainingTime = minProcessingTime - (Date.now() - window.processingStartTime || 0);
+        if (remainingTime > 0) {
+            setTimeout(() => {
+                // Complete the progress bar
+                const progressBar = document.querySelector('.status-progress-bar');
+                if (progressBar) progressBar.style.width = '100%';
+                
+                // Mark all steps as completed
+                document.querySelectorAll('.status-step').forEach(step => {
+                    step.className = 'status-step completed';
+                });
+                
+                setTimeout(resolve, 1000); // Longer delay to show completion
+            }, remainingTime);
+        } else {
+            // Complete the progress bar
+            const progressBar = document.querySelector('.status-progress-bar');
+            if (progressBar) progressBar.style.width = '100%';
+            
+            // Mark all steps as completed
+            document.querySelectorAll('.status-step').forEach(step => {
+                step.className = 'status-step completed';
+            });
+            
+            setTimeout(resolve, 1000); // Show completion state even if minimum time is already passed
+        }
+    });
+}
 
 function createEvaluationHtml(response) {
     const parsedResponse = parseClaudeResponse(response);
