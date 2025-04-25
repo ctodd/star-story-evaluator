@@ -2,6 +2,10 @@
 
 A web application that helps users improve their STAR (Situation, Task, Action, Result) responses for behavioral interviews, with a specific focus on Amazon's Leadership Principles.
 
+## NOT FOR PRODUCTION USE!
+
+This project is a proof of concept created with AI generated code. While some reasonable security best practices have been implemented, no authentication or other necessary protections have been built-in. The code is meant to be run locally only. See: Security Considerations below.
+
 ## Overview
 
 The STAR Stories Evaluator is designed to help job candidates prepare for behavioral interviews by providing automated feedback on their STAR format responses. The application analyzes user-submitted stories, evaluates them against a comprehensive rubric, and provides detailed feedback including:
@@ -127,7 +131,7 @@ The application evaluates STAR stories based on seven criteria:
 
 ## Amazon Leadership Principles
 
-The application specifically evaluates responses against Amazon's 14 Leadership Principles:
+The application specifically evaluates responses against 14 of Amazon's 16 Leadership Principles:
 
 - Customer Obsession
 - Ownership
@@ -144,6 +148,31 @@ The application specifically evaluates responses against Amazon's 14 Leadership 
 - Have Backbone; Disagree and Commit
 - Deliver Results
 
+## Security Considerations
+
+This application is designed as a proof of concept and includes some basic security measures, but is **NOT** intended for production use. The following security considerations have been implemented:
+
+1. **Input Validation** - Basic validation of user inputs to prevent malformed requests
+2. **Secure Debug Logging** - Sensitive data is redacted in debug logs
+3. **Request Size Limits** - Limits on the size of story and question inputs
+4. **Security Headers** - Basic security headers to help prevent common web vulnerabilities
+5. **Sanitized Error Messages** - Error messages are sanitized before being sent to clients
+6. **Asynchronous File Operations** - Secure file operations with proper error handling
+7. **Content Security Policy** - CSP headers to help prevent XSS attacks
+
+For production deployment, additional security measures would be necessary:
+
+1. **Authentication** - Implement user authentication and authorization
+2. **Rate Limiting** - Add rate limiting to prevent abuse
+3. **HTTPS Enforcement** - Require HTTPS for all connections
+4. **CSRF Protection** - Implement CSRF tokens for form submissions
+5. **Secure Credential Management** - Use AWS IAM roles or secrets management
+6. **Input Sanitization** - More thorough sanitization of user inputs
+7. **Logging and Monitoring** - Implement comprehensive logging and monitoring
+8. **Regular Security Updates** - Keep dependencies updated with security patches
+9. **Penetration Testing** - Regular security testing
+10. **Data Encryption** - Encrypt sensitive data at rest and in transit
+
 ## Project Structure
 
 - `server.mjs` - Express server and API endpoint
@@ -155,7 +184,8 @@ The application specifically evaluates responses against Amazon's 14 Leadership 
 
 ## License
 
-ISC
+AGPL V3
+See; License.md
 
 ## Contributing
 

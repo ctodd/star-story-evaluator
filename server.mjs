@@ -19,14 +19,32 @@ const port = process.env.PORT || 3000;
 const DEBUG = process.env.DEBUG === 'true' || false;
 
 // Debug logger function
-function debug(...args) {
+function debug(type, ...args) {
     if (DEBUG) {
-        console.log('[DEBUG]', ...args);
+        if (type === 'sensitive') {
+            console.log('[DEBUG] [SENSITIVE DATA REDACTED]');
+        } else {
+            console.log('[DEBUG]', ...args);
+        }
     }
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 app.use(express.static('public'));
+
+// Add security headers
+app.use((req, res, next) => {
+    // Content Security Policy
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'");
+    // Prevent MIME type sniffing
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // XSS protection
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    // Prevent clickjacking
+    res.setHeader('X-Frame-Options', 'DENY');
+    next();
+});
 
 // Response time tracking
 const RESPONSE_TIMES_FILE = path.join(__dirname, 'response_times.json');
@@ -87,15 +105,27 @@ const USE_CONVERSE_API = process.env.USE_CONVERSE_API === 'true' || false;
 const bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
 
 app.post('/generate', async (req, res) => {
-    debug('Received request:', req.body);
+    debug('request', 'Received request body structure:', Object.keys(req.body));
+    
+    // Input validation
     const userStory = req.body.story;
     const userQuestion = req.body.question || '';
-    debug('User story:', userStory);
-    debug('User question:', userQuestion);
+    
+    // Validate inputs
+    if (!userStory || typeof userStory !== 'string' || userStory.length > 10000) {
+        return res.status(400).json({ error: 'Invalid story input' });
+    }
+    
+    if (userQuestion && (typeof userQuestion !== 'string' || userQuestion.length > 500)) {
+        return res.status(400).json({ error: 'Invalid question input' });
+    }
+    
+    debug('request', 'User story length:', userStory.length);
+    debug('request', 'User question length:', userQuestion.length);
     
     if (typeof customPrompt !== 'string') {
         console.error('Custom prompt is not a string:', customPrompt);
-        return res.status(500).json({ error: 'Internal server error: Invalid custom prompt' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
     
     let fullPrompt = customPrompt.replace('[USER_STORY]', userStory);
@@ -107,7 +137,7 @@ app.post('/generate', async (req, res) => {
         fullPrompt = fullPrompt.replace('[USER_QUESTION]', 'No specific question provided');
     }
     
-    debug('Full prompt:', fullPrompt);
+    debug('sensitive', fullPrompt);
 
     try {
         let responseText;
@@ -125,35 +155,36 @@ app.post('/generate', async (req, res) => {
         console.log(`Response received in ${responseTime}ms`);
         
         // Add to response time history
-        addResponseTime(responseTime);
+        await addResponseTime(responseTime);
         
         res.json({ 
             response: responseText,
             responseTime: responseTime,
-            averageResponseTime: getAverageResponseTime()
+            averageResponseTime: await getAverageResponseTime()
         });
     } catch (error) {
         console.error('Error details:', error);
-        res.status(500).json({ error: error.message || 'An error occurred while processing your request.' });
+        // Sanitize error message for client
+        res.status(500).json({ error: 'An error occurred while processing your request.' });
     }
 });
 
 // Add endpoint to get average response time
-app.get('/api/average-response-time', (req, res) => {
-    res.json({ averageResponseTime: getAverageResponseTime() });
+app.get('/api/average-response-time', async (req, res) => {
+    res.json({ averageResponseTime: await getAverageResponseTime() });
 });
 
 async function callAnthropicAPI(prompt) {
     if (!ANTHROPIC_API_KEY) {
-        throw new Error('Anthropic API key is not configured. Please set ANTHROPIC_API_KEY in your .env file.');
+        throw new Error('Anthropic API key is not configured');
     }
     
     // Validate model
     if (!VALID_ANTHROPIC_MODELS.includes(ANTHROPIC_MODEL)) {
-        throw new Error(`Invalid Anthropic model: ${ANTHROPIC_MODEL}. Please use a Claude 3.x model.`);
+        throw new Error(`Invalid Anthropic model`);
     }
     
-    debug('Sending request to Anthropic API using model:', ANTHROPIC_MODEL);
+    debug('request', 'Sending request to Anthropic API using model:', ANTHROPIC_MODEL);
     const response = await fetch(ANTHROPIC_API_URL, {
         method: 'POST',
         headers: {
@@ -170,39 +201,35 @@ async function callAnthropicAPI(prompt) {
         }),
     });
 
-    debug('Anthropic API response status:', response.status);
+    debug('response', 'Anthropic API response status:', response.status);
     
     if (!response.ok) {
         const errorBody = await response.text();
         console.error('Anthropic API error response:', errorBody);
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorBody}`);
+        throw new Error(`API error: ${response.status}`);
     }
 
     const data = await response.json();
-    debug('Anthropic API response received');
+    debug('response', 'Anthropic API response received');
 
     if (data.content && data.content[0] && data.content[0].text) {
         const responseText = data.content[0].text;
         
         // Print the model response to console only in debug mode
-        if (DEBUG) {
-            console.log('=== MODEL RESPONSE START ===');
-            console.log(responseText);
-            console.log('=== MODEL RESPONSE END ===');
-        }
+        debug('sensitive', responseText);
         
         return responseText;
     } else {
-        throw new Error('Unexpected response structure from Anthropic API');
+        throw new Error('Unexpected response structure');
     }
 }
 
 async function callBedrockAPI(prompt) {
-    debug('Sending request to AWS Bedrock using model:', BEDROCK_MODEL);
+    debug('request', 'Sending request to AWS Bedrock using model:', BEDROCK_MODEL);
     
     // Validate model
     if (!VALID_BEDROCK_MODELS.includes(BEDROCK_MODEL)) {
-        throw new Error(`Invalid Bedrock model: ${BEDROCK_MODEL}. Please use a Claude 3.x model.`);
+        throw new Error(`Invalid Bedrock model`);
     }
     
     try {
@@ -216,12 +243,12 @@ async function callBedrockAPI(prompt) {
         let effectiveModelId = BEDROCK_MODEL;
         if (isNewerClaudeModel && INFERENCE_PROFILES[BEDROCK_MODEL]) {
             effectiveModelId = INFERENCE_PROFILES[BEDROCK_MODEL];
-            debug('Using inference profile ID as model ID:', effectiveModelId);
+            debug('request', 'Using inference profile ID as model ID:', effectiveModelId);
         }
         
         // Check if we should use the Converse API or fall back to InvokeModel
         if (USE_CONVERSE_API) {
-            debug('Using Converse API');
+            debug('request', 'Using Converse API');
             
             // Prepare the request payload for the Converse API
             const converseParams = {
@@ -236,14 +263,11 @@ async function callBedrockAPI(prompt) {
                 }
             };
             
-            // DEBUG: Log the exact request parameters
-            debug('DETAILED REQUEST PARAMS:', JSON.stringify(converseParams, null, 2));
-            
             // Create and send the Converse command
             const command = new ConverseCommand(converseParams);
             response = await bedrockClient.send(command);
             
-            debug('Bedrock Converse API response received');
+            debug('response', 'Bedrock Converse API response received');
             
             // Extract the response text from the message
             if (response.output && 
@@ -254,10 +278,10 @@ async function callBedrockAPI(prompt) {
                 
                 responseText = response.output.message.content[0].text;
             } else {
-                throw new Error('Unexpected response structure from Bedrock Converse API');
+                throw new Error('Unexpected response structure');
             }
         } else {
-            debug('Using InvokeModel API');
+            debug('request', 'Using InvokeModel API');
             
             // Prepare the request payload for InvokeModel
             let payload = {
@@ -275,45 +299,37 @@ async function callBedrockAPI(prompt) {
                 body: JSON.stringify(payload)
             };
             
-            // DEBUG: Log the exact request parameters
-            debug('DETAILED REQUEST PARAMS:', JSON.stringify(params, null, 2));
-            
             // Create and send the InvokeModel command
             const command = new InvokeModelCommand(params);
             response = await bedrockClient.send(command);
             
             // Convert the response body from Uint8Array to string and parse as JSON
             const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-            debug('Bedrock API response received');
+            debug('response', 'Bedrock API response received');
             
             if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
                 responseText = responseBody.content[0].text;
             } else {
-                throw new Error('Unexpected response structure from Bedrock API');
+                throw new Error('Unexpected response structure');
             }
         }
         
         // Print the model response to console only in debug mode
-        if (DEBUG) {
-            console.log('=== MODEL RESPONSE START ===');
-            console.log(responseText);
-            console.log('=== MODEL RESPONSE END ===');
-        }
+        debug('sensitive', responseText);
         
         return responseText;
     } catch (error) {
         console.error('Bedrock API error:', error);
         
-        // DEBUG: Add more detailed error information
+        // Add more detailed error information for debugging but not for client
         if (error.name === 'ValidationException') {
-            debug('VALIDATION ERROR DETAILS:', error);
-            debug('ERROR MESSAGE:', error.message);
+            debug('error', 'VALIDATION ERROR DETAILS:', error);
             if (error.$metadata) {
-                debug('ERROR METADATA:', error.$metadata);
+                debug('error', 'ERROR METADATA:', error.$metadata);
             }
         }
         
-        throw new Error(`AWS Bedrock error: ${error.message}`);
+        throw new Error(`AWS Bedrock error`);
     }
 }
 
@@ -321,14 +337,14 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`Server is running on port ${port}`);
     console.log(`Using API provider: ${API_PROVIDER}`);
     
     if (API_PROVIDER === 'ANTHROPIC') {
         console.log(`Anthropic model: ${ANTHROPIC_MODEL}`);
         if (!VALID_ANTHROPIC_MODELS.includes(ANTHROPIC_MODEL)) {
-            console.warn(`Warning: Using unsupported model ${ANTHROPIC_MODEL}. Supported models are: ${VALID_ANTHROPIC_MODELS.join(', ')}`);
+            console.warn(`Warning: Using unsupported model ${ANTHROPIC_MODEL}`);
         }
     } else {
         console.log(`AWS Bedrock model: ${BEDROCK_MODEL}`);
@@ -341,20 +357,25 @@ app.listen(port, () => {
         }
         
         if (!VALID_BEDROCK_MODELS.includes(BEDROCK_MODEL)) {
-            console.warn(`Warning: Using unsupported model ${BEDROCK_MODEL}. Supported models are: ${VALID_BEDROCK_MODELS.join(', ')}`);
+            console.warn(`Warning: Using unsupported model ${BEDROCK_MODEL}`);
         }
     }
     
-    console.log(`Average response time: ${getAverageResponseTime()}ms`);
+    console.log(`Average response time: ${await getAverageResponseTime()}ms`);
     console.log(`Debug mode: ${DEBUG ? 'enabled' : 'disabled'}`);
 });
 
 // Response time tracking functions
-function loadResponseTimes() {
+async function loadResponseTimes() {
     try {
         if (fs.existsSync(RESPONSE_TIMES_FILE)) {
-            const data = fs.readFileSync(RESPONSE_TIMES_FILE, 'utf8');
-            return JSON.parse(data);
+            const data = await fs.promises.readFile(RESPONSE_TIMES_FILE, 'utf8');
+            try {
+                return JSON.parse(data);
+            } catch (parseError) {
+                console.error('Error parsing response times file:', parseError);
+                return [];
+            }
         }
     } catch (error) {
         console.error('Error loading response times:', error);
@@ -362,15 +383,15 @@ function loadResponseTimes() {
     return [];
 }
 
-function saveResponseTimes(times) {
+async function saveResponseTimes(times) {
     try {
-        fs.writeFileSync(RESPONSE_TIMES_FILE, JSON.stringify(times), 'utf8');
+        await fs.promises.writeFile(RESPONSE_TIMES_FILE, JSON.stringify(times), 'utf8');
     } catch (error) {
         console.error('Error saving response times:', error);
     }
 }
 
-function addResponseTime(responseTime) {
+async function addResponseTime(responseTime) {
     // Validate input
     if (typeof responseTime !== 'number' || responseTime <= 0) {
         console.error('Invalid response time:', responseTime);
@@ -378,7 +399,7 @@ function addResponseTime(responseTime) {
     }
     
     // Load existing times
-    const times = loadResponseTimes();
+    const times = await loadResponseTimes();
     
     // Add new time
     times.push(responseTime);
@@ -387,13 +408,13 @@ function addResponseTime(responseTime) {
     const recentTimes = times.slice(-MAX_HISTORY_ENTRIES);
     
     // Save updated times
-    saveResponseTimes(recentTimes);
+    await saveResponseTimes(recentTimes);
     
-    debug(`Added response time: ${responseTime}ms, Average: ${getAverageResponseTime()}ms`);
+    debug('response', `Added response time: ${responseTime}ms, Average: ${await getAverageResponseTime()}ms`);
 }
 
-function getAverageResponseTime() {
-    const times = loadResponseTimes();
+async function getAverageResponseTime() {
+    const times = await loadResponseTimes();
     
     if (times.length === 0) {
         return DEFAULT_RESPONSE_TIME;

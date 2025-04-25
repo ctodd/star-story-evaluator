@@ -26,8 +26,20 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     const questionInput = document.getElementById('questionInput').value;
     const responseDiv = document.getElementById('response');
 
+    // Input validation
     if (!storyInput.trim()) {
         alert('Please enter your STAR story before submitting.');
+        return;
+    }
+
+    // Validate input size
+    if (storyInput.length > 10000) {
+        alert('Your story is too long. Please limit it to 10,000 characters.');
+        return;
+    }
+
+    if (questionInput.length > 500) {
+        alert('Your question is too long. Please limit it to 500 characters.');
         return;
     }
 
