@@ -19,6 +19,13 @@ textarea {
     height: 200px;
     margin-bottom: 20px;
     padding: 10px;
+    box-sizing: border-box;
+    resize: vertical;
+    overflow-y: auto;
+    max-height: 500px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 button {
