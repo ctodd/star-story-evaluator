@@ -49,6 +49,67 @@ button:hover {
     border-radius: 5px;
 }
 
+.status-indicator {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f0f8ff;
+    border-left: 4px solid #232f3e;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.status-step {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    opacity: 0.4;
+    transition: opacity 0.5s ease;
+}
+
+.status-step.active {
+    opacity: 1;
+}
+
+.status-step.completed {
+    opacity: 0.7;
+}
+
+.status-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #232f3e;
+    color: white;
+    font-size: 14px;
+}
+
+.status-step.completed .status-icon {
+    background-color: #008a00;
+}
+
+.status-text {
+    font-size: 14px;
+}
+
+.status-progress {
+    height: 4px;
+    background-color: #eee;
+    border-radius: 2px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.status-progress-bar {
+    height: 100%;
+    background-color: #ff9900;
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
 .star-evaluation {
     background-color: #f5f5f5;
     border-radius: 10px;
