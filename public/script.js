@@ -24,7 +24,6 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
             throw new Error(data.error);
         }
         
-        // Parse the response and create HTML structure
         const evaluationHtml = createEvaluationHtml(data.response);
         responseDiv.innerHTML = evaluationHtml;
     } catch (error) {
@@ -34,11 +33,11 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 });
 
 function createEvaluationHtml(response) {
-    // This function should parse the response and create the HTML structure
-    // For simplicity, I'll provide a basic implementation. You may need to adjust this
-    // based on the exact structure of your Claude response.
-
     const parsedResponse = parseClaudeResponse(response);
+    
+    if (!parsedResponse) {
+        return '<p>Error parsing the evaluation. Please try again.</p>';
+    }
 
     return `
     <div class="star-evaluation">
@@ -90,31 +89,10 @@ function createEvaluationHtml(response) {
 }
 
 function parseClaudeResponse(response) {
-    // This function should parse the text response from Claude into a structured object
-    // You'll need to implement this based on the exact format of Claude's response
-    // For now, I'll return a mock object
-    return {
-        totalScore: 21,
-        overallEvaluation: "Excellent response",
-        categories: [
-            { name: "Structure", score: 3, description: "The response follows a clear STAR structure, allocating appropriate time to each element." },
-            // Add other categories here
-        ],
-        leadershipPrinciples: [
-            { name: "Customer Obsession", level: "High", description: "Focused on delivering the client's vision and addressing their concerns." },
-            // Add other principles here
-        ],
-        improvementSuggestions: [
-            "Consider highlighting any additional Amazon Leadership Principles demonstrated, such as \"Hire and Develop the Best\" (if the team's capabilities were enhanced) or \"Earn Trust\" (if efforts were made to rebuild trust with the client after the initial termination).",
-            // Add other suggestions here
-        ],
-        talkingPoints: {
-            Situation: [
-                "Product manager for aerospace company website",
-                "Hired by PR/marketing agency as intermediary",
-                "Responsible for building customized website on CMS"
-            ],
-            // Add Task, Actions, Results here
-        }
-    };
+    try {
+        return JSON.parse(response);
+    } catch (error) {
+        console.error('Error parsing Claude response:', error);
+        return null;
+    }
 }
