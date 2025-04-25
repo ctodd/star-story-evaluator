@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { customPrompt } from './customPrompt.mjs';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +17,11 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static('public'));
+
+// Response time tracking
+const RESPONSE_TIMES_FILE = path.join(__dirname, 'response_times.json');
+const MAX_HISTORY_ENTRIES = 10;
+const DEFAULT_RESPONSE_TIME = 30000; // 30 seconds default
 
 // API Provider Configuration
 const API_PROVIDER = process.env.API_PROVIDER || 'BEDROCK'; // Default to AWS Bedrock
@@ -70,6 +76,7 @@ app.post('/generate', async (req, res) => {
 
     try {
         let responseText;
+        const startTime = Date.now();
         
         if (API_PROVIDER === 'ANTHROPIC') {
             responseText = await callAnthropicAPI(fullPrompt);
@@ -78,9 +85,23 @@ app.post('/generate', async (req, res) => {
             responseText = await callBedrockAPI(fullPrompt);
         }
         
-        res.json({ response: responseText });
+        // Calculate and track response time
+        const responseTime = Date.now() - startTime;
+        console.log(`Response received in ${responseTime}ms`);
+        
+        // Add to response time history
+        addResponseTime(responseTime);
+        
+        res.json({ 
+            response: responseText,
+            responseTime: responseTime,
+            averageResponseTime: getAverageResponseTime()
+        });
     } catch (error) {
-        console.error('Error details:', error);
+// Add endpoint to get average response time
+app.get('/api/average-response-time', (req, res) => {
+    res.json({ averageResponseTime: getAverageResponseTime() });
+});        console.error('Error details:', error);
         res.status(500).json({ error: error.message || 'An error occurred while processing your request.' });
     }
 });
@@ -206,4 +227,60 @@ app.listen(port, () => {
             console.warn(`Warning: Using unsupported model ${BEDROCK_MODEL}. Supported models are: ${VALID_BEDROCK_MODELS.join(', ')}`);
         }
     }
+    
+    console.log(`Average response time: ${getAverageResponseTime()}ms`);
 });
+
+// Response time tracking functions
+function loadResponseTimes() {
+    try {
+        if (fs.existsSync(RESPONSE_TIMES_FILE)) {
+            const data = fs.readFileSync(RESPONSE_TIMES_FILE, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Error loading response times:', error);
+    }
+    return [];
+}
+
+function saveResponseTimes(times) {
+    try {
+        fs.writeFileSync(RESPONSE_TIMES_FILE, JSON.stringify(times), 'utf8');
+    } catch (error) {
+        console.error('Error saving response times:', error);
+    }
+}
+
+function addResponseTime(responseTime) {
+    // Validate input
+    if (typeof responseTime !== 'number' || responseTime <= 0) {
+        console.error('Invalid response time:', responseTime);
+        return;
+    }
+    
+    // Load existing times
+    const times = loadResponseTimes();
+    
+    // Add new time
+    times.push(responseTime);
+    
+    // Keep only the most recent entries
+    const recentTimes = times.slice(-MAX_HISTORY_ENTRIES);
+    
+    // Save updated times
+    saveResponseTimes(recentTimes);
+    
+    console.log(`Added response time: ${responseTime}ms, Average: ${getAverageResponseTime()}ms`);
+}
+
+function getAverageResponseTime() {
+    const times = loadResponseTimes();
+    
+    if (times.length === 0) {
+        return DEFAULT_RESPONSE_TIME;
+    }
+    
+    const sum = times.reduce((total, time) => total + time, 0);
+    return Math.round(sum / times.length);
+}

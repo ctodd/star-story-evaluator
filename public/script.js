@@ -1,5 +1,17 @@
 // Store the start time when processing begins
 window.processingStartTime = 0;
+let averageResponseTime = 30000; // Default to 30 seconds
+
+// Fetch the average response time when the page loads
+fetch('/api/average-response-time')
+    .then(response => response.json())
+    .then(data => {
+        averageResponseTime = data.averageResponseTime;
+        console.log(`Using average response time: ${averageResponseTime}ms`);
+    })
+    .catch(error => {
+        console.error('Error fetching average response time:', error);
+    });
 
 document.getElementById('submitBtn').addEventListener('click', async () => {
     const storyInput = document.getElementById('storyInput').value;
@@ -64,6 +76,12 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
             throw new Error(data.error);
         }
         
+        // Update the average response time if provided
+        if (data.averageResponseTime) {
+            averageResponseTime = data.averageResponseTime;
+            console.log(`Updated average response time: ${averageResponseTime}ms`);
+        }
+        
         // Ensure the animation completes before showing results
         await ensureMinimumProcessingTime();
         
@@ -93,8 +111,11 @@ function createStatusIndicator() {
 
 function simulateProcessing(steps, progressBar) {
     const totalSteps = steps.length;
-    const stepDuration = 4500; // increased to ~4.5 seconds per step (31.5 seconds total for 7 steps)
-    const totalDuration = stepDuration * totalSteps;
+    // Use the average response time to calculate step duration
+    const totalDuration = averageResponseTime * 0.9; // Use 90% of average time to leave buffer
+    const stepDuration = totalDuration / totalSteps;
+    
+    console.log(`Simulating processing with ${totalSteps} steps over ${totalDuration}ms (${stepDuration}ms per step)`);
     
     // Start time to track overall progress
     const startTime = Date.now();
@@ -131,10 +152,16 @@ function simulateProcessing(steps, progressBar) {
 }
 
 function ensureMinimumProcessingTime() {
-    const minProcessingTime = 35000; // 35 seconds minimum processing time
+    // Use a minimum processing time based on the average response time
+    // but allow for early completion if the response is already received
+    const minProcessingTime = Math.min(averageResponseTime, 35000); // Cap at 35 seconds max
+    
     return new Promise(resolve => {
-        const remainingTime = minProcessingTime - (Date.now() - window.processingStartTime || 0);
+        const elapsed = Date.now() - window.processingStartTime;
+        const remainingTime = minProcessingTime - elapsed;
+        
         if (remainingTime > 0) {
+            console.log(`Waiting additional ${remainingTime}ms to complete animation`);
             setTimeout(() => {
                 // Complete the progress bar
                 const progressBar = document.querySelector('.status-progress-bar');
@@ -148,6 +175,7 @@ function ensureMinimumProcessingTime() {
                 setTimeout(resolve, 1000); // Longer delay to show completion
             }, remainingTime);
         } else {
+            console.log('Response received quickly, completing animation immediately');
             // Complete the progress bar
             const progressBar = document.querySelector('.status-progress-bar');
             if (progressBar) progressBar.style.width = '100%';
