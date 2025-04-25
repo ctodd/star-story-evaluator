@@ -14,7 +14,8 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
 ## Features
 
 - Web-based interface for submitting STAR stories
-- AI-powered evaluation using Claude AI (Anthropic's Claude-3-Sonnet model)
+- AI-powered evaluation using Claude AI models
+- Support for both AWS Bedrock and Anthropic direct API
 - Comprehensive scoring based on a 7-category rubric
 - Detailed feedback aligned with Amazon's Leadership Principles
 - Talking points generation for interview preparation
@@ -23,11 +24,14 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Backend**: Node.js with Express
-- **AI Integration**: Anthropic's Claude API
+- **AI Integration**: 
+  - AWS Bedrock (default)
+  - Anthropic Claude API (optional)
 - **Dependencies**: 
   - express
   - dotenv
   - node-fetch
+  - aws-sdk
 
 ## Installation
 
@@ -42,17 +46,42 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
    npm install
    ```
 
-3. Create a `.env` file in the root directory with your Anthropic API key:
+3. Create a `.env` file in the root directory:
    ```
-   ANTHROPIC_API_KEY=your_api_key_here
-   PORT=3000
-   # Optional: Specify a custom Claude model
+   # API Provider: BEDROCK or ANTHROPIC (defaults to BEDROCK)
+   API_PROVIDER=BEDROCK
+   
+   # AWS Bedrock Configuration
+   AWS_REGION=us-east-1
+   # Available Claude 3.x models on Bedrock:
+   # BEDROCK_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
+   # BEDROCK_MODEL=anthropic.claude-3-haiku-20240307-v1:0
+   # BEDROCK_MODEL=anthropic.claude-3-opus-20240229-v1:0
+   # BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20240620-v1:0
+   # BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20241022-v2:0
+   # BEDROCK_MODEL=anthropic.claude-3-5-haiku-20241022-v1:0
+   # BEDROCK_MODEL=anthropic.claude-3-7-sonnet-20250219-v1:0
+   
+   # Anthropic Direct API Configuration (only needed if API_PROVIDER=ANTHROPIC)
+   # ANTHROPIC_API_KEY=your_api_key_here
+   # Available Claude 3.x models via direct API:
    # ANTHROPIC_MODEL=claude-3-opus-20240229
+   # ANTHROPIC_MODEL=claude-3-sonnet-20240229
+   # ANTHROPIC_MODEL=claude-3-haiku-20240307
+   # ANTHROPIC_MODEL=claude-3-5-sonnet-20240620
+   # ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+   # ANTHROPIC_MODEL=claude-3-5-haiku-20241022
+   # ANTHROPIC_MODEL=claude-3-7-sonnet-20250219
+   
+   PORT=3000
    ```
 
-4. Start the server:
+4. Configure AWS credentials:
+   - If using AWS Bedrock (default), ensure your AWS credentials are properly configured in `~/.aws/credentials` or via environment variables.
+
+5. Start the server:
    ```
-   node server.mjs
+   npm start
    ```
    
    Alternatively, use the provided script:
@@ -60,7 +89,7 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
    ./run.sh
    ```
 
-5. Access the application at `http://localhost:3000`
+6. Access the application at `http://localhost:3000`
 
 ## Usage
 
