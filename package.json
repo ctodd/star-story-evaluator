@@ -4,7 +4,11 @@
   "main": "scripts.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "generate:aws": "node utils/generate-aws-credentials.js",
+    "generate:anthropic": "node utils/generate-anthropic-key.js",
+    "docker:bedrock": "./utils/setup-docker.sh",
+    "docker:anthropic": "./utils/setup-docker.sh anthropic"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +16,8 @@
   "description": "",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.529.1",
+    "@aws-sdk/client-sts": "^3.529.1",
+    "@aws-sdk/credential-providers": "^3.529.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "node-fetch": "^2.7.0"

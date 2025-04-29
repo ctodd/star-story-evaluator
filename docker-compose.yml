@@ -1,0 +1,53 @@
+services:
+  star-stories:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DEBUG=false
+      # Use environment variables to determine which API provider to use
+      - API_PROVIDER=BEDROCK
+      # Region can be overridden but will use AWS config if not specified
+      - AWS_REGION=${AWS_REGION:-}
+      # Model selection
+      - BEDROCK_MODEL=${BEDROCK_MODEL:-us.anthropic.claude-3-7-sonnet-20250219-v1:0}
+      # Paths to secret files (Docker secrets)
+      - AWS_ACCESS_KEY_ID_FILE=/run/secrets/aws_access_key_id
+      - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/aws_secret_access_key
+      - AWS_SESSION_TOKEN_FILE=/run/secrets/aws_session_token
+    secrets:
+      - aws_access_key_id
+      - aws_secret_access_key
+      - aws_session_token
+    restart: unless-stopped
+    profiles:
+      - default
+
+  # Separate service for Anthropic API that doesn't require AWS credentials
+  star-stories-anthropic:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DEBUG=false
+      - API_PROVIDER=ANTHROPIC
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-7-sonnet-20250219}
+      - ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_api_key
+    secrets:
+      - anthropic_api_key
+    restart: unless-stopped
+    profiles:
+      - anthropic
+
+# Define all secrets
+secrets:
+  aws_access_key_id:
+    file: ./secrets/aws_access_key_id.txt
+  aws_secret_access_key:
+    file: ./secrets/aws_secret_access_key.txt
+  aws_session_token:
+    file: ./secrets/aws_session_token.txt
+  anthropic_api_key:
+    file: ./secrets/anthropic_api_key.txt

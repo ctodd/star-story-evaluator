@@ -1,2 +1,5 @@
-node-modules
+node_modules/
 .env
+.DS_Store
+response_times.json
+secrets/

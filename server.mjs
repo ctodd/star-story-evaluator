@@ -109,19 +109,55 @@ const INFERENCE_PROFILES = {
 // Flag to determine if we should use InvokeModel or Converse API
 const USE_CONVERSE_API = process.env.USE_CONVERSE_API === 'true' || false;
 
-// Configure AWS SDK v3
-let bedrockClient = new BedrockRuntimeClient({ region: AWS_REGION });
+// Configure AWS SDK v3 - only if using Bedrock
+let bedrockClient = null;
+if (API_PROVIDER === 'BEDROCK') {
+    bedrockClient = new BedrockRuntimeClient({ 
+        region: AWS_REGION || 'us-west-2' // Provide a default region
+    });
+}
 
 // Get the actual region being used
-let actualAwsRegion = 'unknown';
+let actualAwsRegion = API_PROVIDER === 'BEDROCK' ? (AWS_REGION || 'us-west-2') : 'N/A';
 
 // Function to refresh AWS credentials and get the actual region
 async function refreshAwsCredentials() {
+    // Skip if we're using Anthropic API
+    if (API_PROVIDER === 'ANTHROPIC') {
+        debug('request', 'Using Anthropic API, skipping AWS credential refresh');
+        return null;
+    }
+    
     debug('request', 'Refreshing AWS credentials');
-    bedrockClient = new BedrockRuntimeClient({ 
-        region: AWS_REGION,
-        credentials: undefined // Force credential refresh
-    });
+    
+    // Check if we have credentials in Docker secrets
+    const accessKeyId = await readSecretFromFile('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = await readSecretFromFile('AWS_SECRET_ACCESS_KEY');
+    const sessionToken = await readSecretFromFile('AWS_SESSION_TOKEN');
+    
+    // If we have credentials from Docker secrets, use them
+    if (accessKeyId && secretAccessKey) {
+        debug('request', 'Using AWS credentials from Docker secrets');
+        const credentials = {
+            accessKeyId,
+            secretAccessKey
+        };
+        
+        if (sessionToken && sessionToken.length > 0) {
+            credentials.sessionToken = sessionToken;
+        }
+        
+        bedrockClient = new BedrockRuntimeClient({ 
+            region: AWS_REGION || 'us-west-2', // Provide a default region if not specified
+            credentials
+        });
+    } else {
+        // Otherwise use default credential chain
+        bedrockClient = new BedrockRuntimeClient({ 
+            region: AWS_REGION || 'us-west-2', // Provide a default region if not specified
+            credentials: undefined // Force credential refresh
+        });
+    }
     
     // Get the actual region from the client config
     try {
@@ -129,12 +165,12 @@ async function refreshAwsCredentials() {
         if (typeof bedrockClient.config.region === 'function') {
             actualAwsRegion = await bedrockClient.config.region();
         } else {
-            actualAwsRegion = bedrockClient.config.region || 'unknown';
+            actualAwsRegion = bedrockClient.config.region || 'us-west-2';
         }
         debug('request', `Using AWS region: ${actualAwsRegion}`);
     } catch (error) {
         console.error('Error getting region:', error);
-        actualAwsRegion = 'unknown';
+        actualAwsRegion = AWS_REGION || 'us-west-2'; // Use the configured region as fallback
     }
     
     return bedrockClient;
@@ -234,7 +270,10 @@ app.get('/api/average-response-time', async (req, res) => {
 });
 
 async function callAnthropicAPI(prompt) {
-    if (!ANTHROPIC_API_KEY) {
+    // Get API key from environment variable or Docker secret
+    const apiKey = await readSecretFromFile('ANTHROPIC_API_KEY');
+    
+    if (!apiKey) {
         throw new Error('Anthropic API key is not configured');
     }
     
@@ -249,7 +288,7 @@ async function callAnthropicAPI(prompt) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': ANTHROPIC_API_KEY,
+                'x-api-key': apiKey,
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
@@ -416,8 +455,12 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, async () => {
-    // Initialize the AWS client to get the actual region
-    await refreshAwsCredentials();
+    // Initialize the AWS client to get the actual region (only if using Bedrock)
+    if (API_PROVIDER === 'BEDROCK') {
+        await refreshAwsCredentials();
+    } else {
+        actualAwsRegion = AWS_REGION || 'N/A'; // Set a default value for Anthropic
+    }
     
     console.log(`Server is running on port ${port}`);
     console.log(`Using API provider: ${API_PROVIDER}`);
@@ -524,4 +567,18 @@ async function getAwsRegion() {
         console.error('Error getting AWS region:', error);
         return 'unknown';
     }
+}
+// Function to read a secret from a file if environment variable with _FILE suffix exists
+async function readSecretFromFile(envVar) {
+    const fileEnvVar = `${envVar}_FILE`;
+    if (process.env[fileEnvVar]) {
+        try {
+            const secretValue = await fs.promises.readFile(process.env[fileEnvVar], 'utf8');
+            return secretValue.trim();
+        } catch (error) {
+            console.error(`Error reading secret from ${process.env[fileEnvVar]}:`, error);
+            return null;
+        }
+    }
+    return process.env[envVar];
 }

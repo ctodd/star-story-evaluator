@@ -41,9 +41,11 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
 
 ## Installation
 
+### Option 1: Local Installation
+
 1. Clone the repository:
    ```
-   git clone https://github.com/ctodd/star-story-evaluator
+   git clone <repository-url>
    cd STAR_Stories
    ```
 
@@ -52,7 +54,7 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
    npm install
    ```
 
-3. Create a `.env` file in the root directory (r copy from .env.example):
+3. Create a `.env` file in the root directory (or copy from .env.example):
    ```
    # API Provider: BEDROCK or ANTHROPIC (defaults to BEDROCK)
    API_PROVIDER=BEDROCK
@@ -96,7 +98,67 @@ The STAR Stories Evaluator is designed to help job candidates prepare for behavi
    npm start
    ```
 
-6. Access the application at `http://localhost:3000`
+### Option 2: Docker Installation
+
+1. Clone the repository:
+   ```
+   git clone <repository-url>
+   cd STAR_Stories
+   ```
+
+2. **Set up credentials using Docker secrets**:
+
+   a. Create the secrets directory:
+   ```
+   mkdir -p ./secrets
+   ```
+
+   b. Generate AWS credentials (choose one method):
+   
+   * Using the provided utility:
+     ```
+     npm run generate:aws
+     ```
+   
+   * Manually with AWS CLI:
+     ```
+     # Generate temporary session token
+     aws sts get-session-token --duration-seconds 3600
+     
+     # Save credentials to files
+     echo "YOUR_ACCESS_KEY_ID" > ./secrets/aws_access_key_id.txt
+     echo "YOUR_SECRET_ACCESS_KEY" > ./secrets/aws_secret_access_key.txt
+     echo "YOUR_SESSION_TOKEN" > ./secrets/aws_session_token.txt
+     ```
+
+   c. Set up Anthropic API key (if using Anthropic directly):
+   
+   * Using the provided utility:
+     ```
+     npm run generate:anthropic
+     ```
+   
+   * Manually:
+     ```
+     echo "YOUR_ANTHROPIC_API_KEY" > ./secrets/anthropic_api_key.txt
+     ```
+
+3. Build and run using Docker Compose:
+   ```bash
+   # For AWS Bedrock (default)
+   npm run docker:bedrock
+   
+   # For Anthropic API (requires setting up Anthropic API key)
+   npm run generate:anthropic  # Create the Anthropic API key file
+   npm run docker:anthropic    # Start Docker with Anthropic configuration
+   ```
+   
+   This will:
+   - Build the Docker image
+   - Set up the necessary credential files
+   - Start the container on port 3000
+
+4. Access the application at `http://localhost:3000`
 
 ## Usage
 
@@ -143,6 +205,53 @@ The application specifically evaluates responses against 14 of Amazon's 16 Leade
 - Have Backbone; Disagree and Commit
 - Deliver Results
 
+## Docker Configuration
+
+The application includes Docker support for easy deployment:
+
+- **Dockerfile**: Defines the container image based on Node.js
+- **docker-compose.yml**: Provides a complete setup with Docker secrets
+- **.dockerignore**: Excludes unnecessary files from the Docker image
+
+### Docker Profiles
+
+The Docker Compose configuration uses profiles to manage different service configurations:
+
+- **default**: Uses AWS Bedrock for AI processing
+- **anthropic**: Uses Anthropic API directly for AI processing
+
+### Environment Variables
+
+When running with Docker, you can configure the application using environment variables in the docker-compose.yml file:
+
+```yaml
+environment:
+  - PORT=3000
+  - DEBUG=false
+  - API_PROVIDER=BEDROCK
+  - BEDROCK_MODEL=us.anthropic.claude-3-7-sonnet-20250219-v1:0
+  - AWS_REGION=us-west-2
+```
+
+### Docker Secrets
+
+The application uses Docker secrets to securely manage credentials:
+
+```yaml
+secrets:
+  - anthropic_api_key
+  - aws_access_key_id
+  - aws_secret_access_key
+  - aws_session_token
+```
+
+This approach is more secure than environment variables or mounting the entire ~/.aws directory, as it:
+
+1. Isolates only the specific credentials needed
+2. Prevents credentials from appearing in environment variables
+3. Allows for fine-grained access control
+4. Supports temporary credentials with defined lifetimes
+
 ## Security Considerations
 
 This application is designed as a proof of concept and includes some basic security measures, but is **NOT** intended for production use. The following security considerations have been implemented:
@@ -168,6 +277,117 @@ For production deployment, additional security measures would be necessary:
 9. **Penetration Testing** - Regular security testing
 10. **Data Encryption** - Encrypt sensitive data at rest and in transit
 
+## Secure Credential Management
+
+The application supports multiple methods for securely managing credentials:
+
+### Option 1: Environment Variables
+
+You can provide credentials via environment variables:
+
+```
+# AWS credentials
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_SESSION_TOKEN=your_session_token
+
+# Anthropic API key
+ANTHROPIC_API_KEY=your_api_key
+```
+
+### Option 2: Docker Secrets (Recommended)
+
+Docker secrets provide a secure way to manage sensitive information. The application is configured to read credentials from Docker secrets.
+
+1. **Generate AWS Credentials**:
+   ```
+   npm run generate:aws
+   ```
+   This utility provides three options:
+   - Use existing AWS profile credentials
+   - Generate temporary session token (recommended)
+   - Assume an IAM role with limited permissions (most secure)
+
+2. **Generate Anthropic API Key**:
+   ```
+   npm run generate:anthropic
+   ```
+
+The credentials are stored in the `./secrets` directory and mounted as Docker secrets. They are never exposed in environment variables or logs.
+
+### Manual Credential Management
+
+If you prefer not to use the provided utilities, you can manually create and manage the credential files:
+
+#### Manual AWS Credential Generation
+
+1. **Create the secrets directory**:
+   ```
+   mkdir -p ./secrets
+   ```
+
+2. **Generate temporary AWS credentials** using the AWS CLI:
+   ```
+   aws sts get-session-token --duration-seconds 3600
+   ```
+   
+   Or to assume a role with limited permissions:
+   ```
+   aws sts assume-role --role-arn arn:aws:iam::123456789012:role/BedockInvokeRole --role-session-name STARStoriesSession --duration-seconds 3600
+   ```
+
+3. **Create individual credential files** in the `./secrets` directory:
+   ```
+   echo "YOUR_ACCESS_KEY_ID" > ./secrets/aws_access_key_id.txt
+   echo "YOUR_SECRET_ACCESS_KEY" > ./secrets/aws_secret_access_key.txt
+   echo "YOUR_SESSION_TOKEN" > ./secrets/aws_session_token.txt
+   ```
+
+#### Manual Anthropic API Key Setup
+
+1. **Create the Anthropic API key file**:
+   ```
+   echo "YOUR_ANTHROPIC_API_KEY" > ./secrets/anthropic_api_key.txt
+   ```
+
+This manual approach gives you full control over the credential files and allows you to inspect exactly what is being stored before running the application.
+
+### Security Best Practices
+
+1. **Use Temporary Credentials**: Generate short-lived AWS credentials using the provided utility
+2. **Least Privilege**: Create an IAM role with permissions limited to Bedrock model invocation
+3. **Credential Isolation**: The Docker setup ensures credentials are isolated to the container
+4. **Secret Rotation**: Regularly rotate credentials, especially for production use
+
+### AWS IAM Policy Example
+
+Create an IAM policy with minimal permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:Converse"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:*:*:foundation-model/anthropic.claude-*"
+      ]
+    }
+  ]
+}
+```
+
+1. **Create the Anthropic API key file**:
+   ```
+   echo "YOUR_ANTHROPIC_API_KEY" > ./secrets/anthropic_api_key.txt
+   ```
+
+This manual approach gives you full control over the credential files and allows you to inspect exactly what is being stored before running the application.
+
 ## Project Structure
 
 - `server.mjs` - Express server and API endpoint
@@ -176,6 +396,8 @@ For production deployment, additional security measures would be necessary:
   - `index.html` - Main application page
   - `styles.css` - Application styling
   - `script.js` - Frontend JavaScript for handling user interactions
+- `Dockerfile` - Container definition for Docker deployment
+- `docker-compose.yml` - Docker Compose configuration
 
 ## License
 
