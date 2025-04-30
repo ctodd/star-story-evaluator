@@ -414,3 +414,106 @@ li {
     border-bottom: 1px solid #eee;
     padding-bottom: 5px;
 }
+.job-title-input {
+    margin-bottom: 15px;
+}
+
+.job-title-input label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.job-title-input input {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+/* Bar Raiser Assessment Color Schemes */
+.bar-raiser-evaluation.assessment-strong-hire {
+    border-left: 4px solid #2e7d32;
+}
+
+.bar-raiser-evaluation.assessment-inclined {
+    border-left: 4px solid #1976d2;
+}
+
+.bar-raiser-evaluation.assessment-not-inclined {
+    border-left: 4px solid #ff9800;
+}
+
+.bar-raiser-evaluation.assessment-strong-no-hire {
+    border-left: 4px solid #d32f2f;
+}
+
+.bar-raiser-evaluation.assessment-neutral {
+    border-left: 4px solid #b71c1c;
+}
+
+.bar-raiser-assessment.assessment-strong-hire {
+    background-color: #2e7d32;
+}
+
+.bar-raiser-assessment.assessment-inclined {
+    background-color: #1976d2;
+}
+
+.bar-raiser-assessment.assessment-not-inclined {
+    background-color: #ff9800;
+}
+
+.bar-raiser-assessment.assessment-strong-no-hire {
+    background-color: #d32f2f;
+}
+
+.bar-raiser-assessment.assessment-neutral {
+    background-color: #b71c1c;
+}
+
+.bar-raiser-evaluation.assessment-strong-hire h2 {
+    color: #2e7d32;
+    border-bottom: 2px solid #2e7d32;
+}
+
+.bar-raiser-evaluation.assessment-inclined h2 {
+    color: #1976d2;
+    border-bottom: 2px solid #1976d2;
+}
+
+.bar-raiser-evaluation.assessment-not-inclined h2 {
+    color: #ff9800;
+    border-bottom: 2px solid #ff9800;
+}
+
+.bar-raiser-evaluation.assessment-strong-no-hire h2 {
+    color: #d32f2f;
+    border-bottom: 2px solid #d32f2f;
+}
+
+.bar-raiser-evaluation.assessment-neutral h2 {
+    color: #b71c1c;
+    border-bottom: 2px solid #b71c1c;
+}
+
+.bar-raiser-section h3 {
+    color: inherit;
+}
+
+.bar-raiser-evaluation.assessment-strong-hire .bar-raiser-section h3 {
+    color: #2e7d32;
+}
+
+.bar-raiser-evaluation.assessment-inclined .bar-raiser-section h3 {
+    color: #1976d2;
+}
+
+.bar-raiser-evaluation.assessment-not-inclined .bar-raiser-section h3 {
+    color: #ff9800;
+}
+
+.bar-raiser-evaluation.assessment-strong-no-hire .bar-raiser-section h3 {
+    color: #d32f2f;
+}
