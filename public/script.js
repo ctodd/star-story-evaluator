@@ -31,6 +31,8 @@ fetch('/api/average-response-time')
 document.getElementById('submitBtn').addEventListener('click', async () => {
     const storyInput = document.getElementById('storyInput').value;
     const questionInput = document.getElementById('questionInput').value;
+    const jobTitleInput = document.getElementById('jobTitleInput') ? document.getElementById('jobTitleInput').value : '';
+    const includeBarRaiser = document.getElementById('barRaiserCheckbox').checked;
     const responseDiv = document.getElementById('response');
 
     // Input validation
@@ -49,12 +51,17 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         alert('Your question is too long. Please limit it to 500 characters.');
         return;
     }
+    
+    if (jobTitleInput && jobTitleInput.length > 200) {
+        alert('Your job title is too long. Please limit it to 200 characters.');
+        return;
+    }
 
     // Record the start time
     window.processingStartTime = Date.now();
 
     // Create and display the status indicator
-    const statusIndicator = createStatusIndicator();
+    const statusIndicator = createStatusIndicator(includeBarRaiser);
     responseDiv.innerHTML = '';
     responseDiv.appendChild(statusIndicator);
 
@@ -69,6 +76,15 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         { id: 'reviewing', text: 'Reviewing evaluation for accuracy...' },
         { id: 'finalizing', text: 'Finalizing evaluation report...' }
     ];
+    
+    // Add Bar Raiser steps if needed
+    if (includeBarRaiser) {
+        steps.push(
+            { id: 'bar-raiser-analyzing', text: 'Bar Raiser: Conducting deep dive analysis...' },
+            { id: 'bar-raiser-assessment', text: 'Bar Raiser: Determining hiring recommendation...' },
+            { id: 'bar-raiser-questions', text: 'Bar Raiser: Preparing follow-up questions...' }
+        );
+    }
 
     // Add steps to the status indicator
     const stepsContainer = statusIndicator.querySelector('.status-steps');
@@ -97,7 +113,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
             },
             body: JSON.stringify({ 
                 story: storyInput,
-                question: questionInput 
+                question: questionInput,
+                jobTitle: jobTitleInput,
+                includeBarRaiser: includeBarRaiser
             }),
         });
 
@@ -128,8 +146,16 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         await ensureMinimumProcessingTime();
         
         // Replace the status indicator with the evaluation results
-        const evaluationHtml = createEvaluationHtml(data.response);
-        responseDiv.innerHTML = evaluationHtml;
+        if (includeBarRaiser && data.barRaiserResponse) {
+            const evaluationHtml = createTabEvaluationHtml(data.response, data.barRaiserResponse);
+            responseDiv.innerHTML = evaluationHtml;
+            
+            // Set up tab functionality
+            setupTabs();
+        } else {
+            const evaluationHtml = createEvaluationHtml(data.response);
+            responseDiv.innerHTML = evaluationHtml;
+        }
     } catch (error) {
         console.error('Error:', error);
         // Ensure the animation stops
@@ -168,12 +194,11 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         responseDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
     }
 });
-
-function createStatusIndicator() {
+function createStatusIndicator(includeBarRaiser = false) {
     const statusIndicator = document.createElement('div');
     statusIndicator.className = 'status-indicator';
     statusIndicator.innerHTML = `
-        <h3>Evaluating Your STAR Story</h3>
+        <h3>Evaluating Your STAR Story${includeBarRaiser ? ' with Bar Raiser Analysis' : ''}</h3>
         <div class="status-steps"></div>
         <div class="status-progress">
             <div class="status-progress-bar"></div>
@@ -262,7 +287,6 @@ function ensureMinimumProcessingTime() {
         }
     });
 }
-
 function createEvaluationHtml(response) {
     const parsedResponse = parseClaudeResponse(response);
     
@@ -328,7 +352,166 @@ function createEvaluationHtml(response) {
     </div>
     `;
 }
+function createTabEvaluationHtml(response, barRaiserResponse) {
+    const parsedResponse = parseClaudeResponse(response);
+    const parsedBarRaiserResponse = parseBarRaiserResponse(barRaiserResponse);
+    
+    if (!parsedResponse) {
+        return '<p>Error parsing the evaluation. Please try again.</p>';
+    }
+    
+    // Always calculate the total score from categories instead of using the model's totalScore
+    const calculatedTotalScore = parsedResponse.categories.reduce((sum, category) => sum + category.score, 0);
+    
+    // Determine the assessment class based on the Bar Raiser assessment
+    const assessmentClass = getAssessmentClass(parsedBarRaiserResponse.assessment);
 
+    return `
+    <div class="evaluation-tabs">
+        <div class="tab active" data-tab="standard-evaluation">Standard Evaluation</div>
+        <div class="tab" data-tab="bar-raiser-evaluation">Bar Raiser Evaluation</div>
+    </div>
+    
+    <div id="standard-evaluation" class="tab-content active">
+        <div class="star-evaluation">
+            <h2>STAR Response Evaluation</h2>
+            
+            ${parsedResponse.impliedQuestion ? `
+            <div class="implied-question">
+                <h3>Implied Question</h3>
+                <p>${parsedResponse.impliedQuestion}</p>
+            </div>
+            ` : ''}
+            
+            <div class="score-summary">
+                <h3>Total Score: <span class="highlight">${calculatedTotalScore}/21</span> - ${parsedResponse.overallEvaluation}</h3>
+            </div>
+
+            <div class="evaluation-categories">
+                ${parsedResponse.categories.map(category => `
+                    <div class="category">
+                        <h4>${category.name}</h4>
+                        <p>Score: <span class="score">${category.score}</span>/3</p>
+                        <p>${category.description}</p>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="leadership-principles">
+                <h3>Alignment with Amazon Leadership Principles</h3>
+                <ul>
+                    ${parsedResponse.leadershipPrinciples.map(principle => `
+                        <li><strong>${principle.name} (${principle.level})</strong>: ${principle.description}</li>
+                    `).join('')}
+                </ul>
+            </div>
+
+            <div class="improvement-suggestions">
+                <h3>Improvement Suggestions</h3>
+                <ul>
+                    ${parsedResponse.improvementSuggestions.map(suggestion => `
+                        <li>${suggestion}</li>
+                    `).join('')}
+                </ul>
+            </div>
+
+            <div class="talking-points">
+                <h3>Talking Points</h3>
+                ${Object.entries(parsedResponse.talkingPoints).map(([key, points]) => `
+                    <h4>${key}:</h4>
+                    <ul>
+                        ${points.map(point => `<li>${point}</li>`).join('')}
+                    </ul>
+                `).join('')}
+            </div>
+        </div>
+    </div>
+    
+    <div id="bar-raiser-evaluation" class="tab-content">
+        <div class="bar-raiser-evaluation ${assessmentClass}">
+            <h2>Bar Raiser Evaluation</h2>
+            
+            <div class="bar-raiser-assessment ${assessmentClass}">
+                <h3>Overall Assessment: ${formatBarRaiserAssessment(parsedBarRaiserResponse.assessment)}</h3>
+            </div>
+            
+            <div class="bar-raiser-section">
+                <h3>Leadership Principles Deep Dive</h3>
+                <ul>
+                    ${parsedBarRaiserResponse.leadershipPrinciples.map(principle => `
+                        <li><strong>${principle.name}</strong>: ${principle.analysis}</li>
+                    `).join('')}
+                </ul>
+            </div>
+            
+            <div class="bar-raiser-section">
+                <h3>Scope and Impact Analysis</h3>
+                <p>${parsedBarRaiserResponse.scopeAnalysis}</p>
+            </div>
+            
+            <div class="bar-raiser-section">
+                <h3>Decision Quality</h3>
+                <p>${parsedBarRaiserResponse.decisionQuality}</p>
+            </div>
+            
+            <div class="bar-raiser-section">
+                <h3>Red Flags and Concerns</h3>
+                <ul>
+                    ${parsedBarRaiserResponse.redFlags.map(flag => `<li>${flag}</li>`).join('')}
+                </ul>
+            </div>
+            
+            <div class="bar-raiser-section">
+                <h3>Cross-Level Assessment</h3>
+                <p>${parsedBarRaiserResponse.crossLevelAssessment}</p>
+            </div>
+            
+            <div class="bar-raiser-section">
+                <h3>Bar Raiser Follow-up Questions</h3>
+                <ol>
+                    ${parsedBarRaiserResponse.followUpQuestions.map(question => `<li>${question}</li>`).join('')}
+                </ol>
+            </div>
+            
+            <div class="bar-raiser-section">
+                <h3>Comparison to Bar</h3>
+                <p>${parsedBarRaiserResponse.comparisonToBar}</p>
+            </div>
+        </div>
+    </div>
+    `;
+}
+
+// Helper function to format Bar Raiser assessment with line break after the recommendation
+function formatBarRaiserAssessment(assessment) {
+    // Look for common hiring recommendation patterns
+    const recommendationPattern = /(Strong Hire|Inclined|Not Inclined|Strong No Hire)(\s*[-:]\s*|\s+)/i;
+    const match = assessment.match(recommendationPattern);
+    
+    if (match) {
+        // Replace the matched pattern with the recommendation followed by a line break
+        return assessment.replace(recommendationPattern, `<strong>${match[1]}</strong><br><br>`);
+    }
+    
+    return assessment;
+}
+
+// Helper function to determine the CSS class based on the assessment
+function getAssessmentClass(assessment) {
+    const lowerAssessment = assessment.toLowerCase();
+    
+    if (lowerAssessment.includes('strong hire')) {
+        return 'assessment-strong-hire';
+    } else if (lowerAssessment.includes('inclined') && !lowerAssessment.includes('not inclined')) {
+        return 'assessment-inclined';
+    } else if (lowerAssessment.includes('not inclined')) {
+        return 'assessment-not-inclined';
+    } else if (lowerAssessment.includes('strong no hire')) {
+        return 'assessment-strong-no-hire';
+    } else {
+        return 'assessment-neutral';
+    }
+}
 function parseClaudeResponse(response) {
     try {
         // First, check if the response contains a JSON object within markdown code blocks
@@ -460,4 +643,129 @@ function parseClaudeResponse(response) {
         }
         return null;
     }
+}
+
+function parseBarRaiserResponse(response) {
+    try {
+        // Create a default structure for the Bar Raiser response
+        const result = {
+            assessment: "Not provided",
+            leadershipPrinciples: [],
+            scopeAnalysis: "Not provided",
+            decisionQuality: "Not provided",
+            redFlags: [],
+            crossLevelAssessment: "Not provided",
+            followUpQuestions: [],
+            comparisonToBar: "Not provided"
+        };
+        
+        if (!response) {
+            return result;
+        }
+        
+        // Extract overall assessment
+        const assessmentMatch = response.match(/Bar Raiser Overall Assessment[:\s]*([^\.]+)/i) || 
+                               response.match(/Overall Assessment[:\s]*([^\.]+)/i);
+        if (assessmentMatch) {
+            result.assessment = assessmentMatch[1].trim();
+        }
+        
+        // Extract leadership principles
+        const principlesSection = response.match(/Leadership Principles Deep Dive[:\s]*([\s\S]*?)(?=Scope and Impact|Red Flags|Decision|#)/i);
+        if (principlesSection) {
+            const principleRegex = /([A-Za-z, ]+)(?:\(Strong\)|\(Demonstrated\))?[:\s]*([\s\S]*?)(?=\n\n|\n[A-Za-z]|$)/g;
+            let match;
+            while ((match = principleRegex.exec(principlesSection[1])) !== null) {
+                result.leadershipPrinciples.push({
+                    name: match[1].trim(),
+                    analysis: match[2].trim()
+                });
+            }
+        }
+        
+        // Extract scope and impact analysis
+        const scopeMatch = response.match(/Scope and Impact Analysis[:\s]*([\s\S]*?)(?=Decision Quality|Red Flags|#)/i);
+        if (scopeMatch) {
+            result.scopeAnalysis = scopeMatch[1].trim();
+        }
+        
+        // Extract decision quality
+        const decisionMatch = response.match(/Decision Quality[:\s]*([\s\S]*?)(?=Red Flags|Cross-Level|#)/i);
+        if (decisionMatch) {
+            result.decisionQuality = decisionMatch[1].trim();
+        }
+        
+        // Extract red flags
+        const redFlagsSection = response.match(/Red Flags and Concerns[:\s]*([\s\S]*?)(?=Cross-Level|Bar Raiser Questions|#)/i);
+        if (redFlagsSection) {
+            const flagsText = redFlagsSection[1];
+            const flagRegex = /[-*•]\s*([^\.]+\.)/g;
+            let match;
+            while ((match = flagRegex.exec(flagsText)) !== null) {
+                result.redFlags.push(match[1].trim());
+            }
+            
+            // If no bullet points found, use the whole section
+            if (result.redFlags.length === 0) {
+                result.redFlags.push(flagsText.trim());
+            }
+        }
+        
+        // Extract cross-level assessment
+        const crossLevelMatch = response.match(/Cross-Level Assessment[:\s]*([\s\S]*?)(?=Bar Raiser Questions|Comparison|#)/i);
+        if (crossLevelMatch) {
+            result.crossLevelAssessment = crossLevelMatch[1].trim();
+        }
+        
+        // Extract follow-up questions
+        const questionsSection = response.match(/Bar Raiser Questions[:\s]*([\s\S]*?)(?=Comparison to Bar|#)/i);
+        if (questionsSection) {
+            const questionRegex = /[-*•\d\.]\s*([^\.]+\?)/g;
+            let match;
+            while ((match = questionRegex.exec(questionsSection[1])) !== null) {
+                result.followUpQuestions.push(match[1].trim());
+            }
+        }
+        
+        // Extract comparison to bar
+        const comparisonMatch = response.match(/Comparison to Bar[:\s]*([\s\S]*?)(?=#|$)/i);
+        if (comparisonMatch) {
+            result.comparisonToBar = comparisonMatch[1].trim();
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('Error parsing Bar Raiser response:', error);
+        if (DEBUG) {
+            console.log('Raw Bar Raiser response:', response);
+        }
+        return {
+            assessment: "Error parsing response",
+            leadershipPrinciples: [],
+            scopeAnalysis: "Not available",
+            decisionQuality: "Not available",
+            redFlags: ["Error parsing response"],
+            crossLevelAssessment: "Not available",
+            followUpQuestions: [],
+            comparisonToBar: "Not available"
+        };
+    }
+}
+
+function setupTabs() {
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs and contents
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            tab.classList.add('active');
+            const tabId = tab.getAttribute('data-tab');
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
 }
