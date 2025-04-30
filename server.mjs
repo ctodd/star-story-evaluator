@@ -183,6 +183,7 @@ app.post('/generate', async (req, res) => {
     // Input validation
     const userStory = req.body.story;
     const userQuestion = req.body.question || '';
+    const jobTitle = req.body.jobTitle || '';
     const includeBarRaiser = req.body.includeBarRaiser === true;
     
     // Validate inputs
@@ -194,8 +195,13 @@ app.post('/generate', async (req, res) => {
         return res.status(400).json({ error: 'Invalid question input' });
     }
     
+    if (jobTitle && (typeof jobTitle !== 'string' || jobTitle.length > 200)) {
+        return res.status(400).json({ error: 'Invalid job title input' });
+    }
+    
     debug('request', 'User story length:', userStory.length);
     debug('request', 'User question length:', userQuestion.length);
+    debug('request', 'Job title:', jobTitle);
     debug('request', 'Include Bar Raiser evaluation:', includeBarRaiser);
     
     // Reload environment variables to pick up any changes
@@ -221,6 +227,11 @@ app.post('/generate', async (req, res) => {
         fullPrompt = fullPrompt.replace('[USER_QUESTION]', 'No specific question provided');
     }
     
+    // Add job title context if provided
+    if (jobTitle) {
+        fullPrompt = fullPrompt + `\n\nPlease consider that the candidate is applying for the position of: ${jobTitle}`;
+    }
+    
     debug('sensitive', fullPrompt);
 
     try {
@@ -241,7 +252,12 @@ app.post('/generate', async (req, res) => {
             debug('request', 'Making Bar Raiser evaluation call');
             
             // Create the Bar Raiser prompt
-            const barRaiserFullPrompt = barRaiserPrompt(userStory, userQuestion);
+            let barRaiserFullPrompt = barRaiserPrompt(userStory, userQuestion);
+            
+            // Add job title context if provided
+            if (jobTitle) {
+                barRaiserFullPrompt = barRaiserFullPrompt + `\n\nThe candidate is applying for the position of: ${jobTitle}. Please evaluate their STAR story in the context of this role.`;
+            }
             
             // Make the Bar Raiser evaluation call
             if (API_PROVIDER === 'ANTHROPIC') {
