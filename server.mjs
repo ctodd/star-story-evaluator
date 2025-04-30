@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { customPrompt } from './customPrompt.mjs';
+import { barRaiserPrompt } from './barRaiserPrompt.mjs';
 import { BedrockRuntimeClient, InvokeModelCommand, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import fs from 'fs';
 
@@ -182,6 +183,7 @@ app.post('/generate', async (req, res) => {
     // Input validation
     const userStory = req.body.story;
     const userQuestion = req.body.question || '';
+    const includeBarRaiser = req.body.includeBarRaiser === true;
     
     // Validate inputs
     if (!userStory || typeof userStory !== 'string' || userStory.length > 10000) {
@@ -194,6 +196,7 @@ app.post('/generate', async (req, res) => {
     
     debug('request', 'User story length:', userStory.length);
     debug('request', 'User question length:', userQuestion.length);
+    debug('request', 'Include Bar Raiser evaluation:', includeBarRaiser);
     
     // Reload environment variables to pick up any changes
     dotenv.config();
@@ -222,13 +225,30 @@ app.post('/generate', async (req, res) => {
 
     try {
         let responseText;
+        let barRaiserResponseText = null;
         const startTime = Date.now();
         
+        // Make the primary evaluation call
         if (API_PROVIDER === 'ANTHROPIC') {
             responseText = await callAnthropicAPI(fullPrompt);
         } else {
             // Default to AWS Bedrock
             responseText = await callBedrockAPI(fullPrompt);
+        }
+        
+        // If Bar Raiser evaluation is requested, make a second call
+        if (includeBarRaiser) {
+            debug('request', 'Making Bar Raiser evaluation call');
+            
+            // Create the Bar Raiser prompt
+            const barRaiserFullPrompt = barRaiserPrompt(userStory, userQuestion);
+            
+            // Make the Bar Raiser evaluation call
+            if (API_PROVIDER === 'ANTHROPIC') {
+                barRaiserResponseText = await callAnthropicAPI(barRaiserFullPrompt);
+            } else {
+                barRaiserResponseText = await callBedrockAPI(barRaiserFullPrompt);
+            }
         }
         
         // Calculate and track response time
@@ -240,6 +260,7 @@ app.post('/generate', async (req, res) => {
         
         res.json({ 
             response: responseText,
+            barRaiserResponse: barRaiserResponseText,
             responseTime: responseTime,
             averageResponseTime: await getAverageResponseTime()
         });
